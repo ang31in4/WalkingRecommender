@@ -23,12 +23,41 @@ class DataIngestion:
         except Exception as e:
             print(e)
             return {}
+        
+    def filter_for_walkability(self, routes):
+        filtered_routes = []
+        walkable_highways = {"footway", "path", "pedestrian",
+                             "steps", "residential", "track"}
+        
+        for element in routes.get("elements", []):
+            tags = element.get("tags", {})
+
+            if "highway" not in tags:
+                continue
+            
+            if tags.get("highway") not in walkable_highways:
+                continue
+            
+            if tags.get("access") in ("no", "private"):
+                continue
+            
+            if tags.get("foot") in ("no", "private"):
+                continue
+            
+            if "barrier" in tags:
+                continue
+
+            filtered_routes.append(element)
+
+        return {"elements": filtered_routes}
+        
 
 if __name__ == "__main__":
     ingest = DataIngestion()
 
     # Using 1000m radius to ensure we actually catch some data
     result = ingest.fetch_routes(33.6430, -117.8412, 1000)
+    result = ingest.filter_for_walkability(result)
 
     if "elements" in result:
         for element in result["elements"]:
