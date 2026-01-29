@@ -1,1 +1,11 @@
 .DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Python virtual environments
+.venv/
+venv/
+env/
