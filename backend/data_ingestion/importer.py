@@ -1,5 +1,6 @@
 from typing import Dict
 import requests
+import pandas as pd
 from config import Config
 
 class DataIngestion:
@@ -50,15 +51,30 @@ class DataIngestion:
             filtered_routes.append(element)
 
         return {"elements": filtered_routes}
+    
+    # reformatting results into a dataframe to make it easy to 
+    # add fields later and create the logical view
+    def make_dataframe(self, routes):
+        ways = []
+
+        # not keeping 'type' because they're all ways
+        for element in routes.get("elements", []):
+            row = {
+                "id": element.get("id"),
+                "bounds": element.get("bounds"),
+                "geometry": element.get("geometry"),
+                "tags": element.get("tags")
+            }
+            ways.append(row)
         
+        return pd.DataFrame(ways)
 
 if __name__ == "__main__":
     ingest = DataIngestion()
 
     # Using 1000m radius to ensure we actually catch some data
     result = ingest.fetch_routes(33.6430, -117.8412, 1000)
-    result = ingest.filter_for_walkability(result)
+    filtered_result = ingest.filter_for_walkability(result)
+    df = ingest.make_dataframe(filtered_result)
 
-    if "elements" in result:
-        for element in result["elements"]:
-            print(element)
+    print(df.head())
