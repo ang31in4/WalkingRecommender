@@ -1,6 +1,8 @@
 from typing import Dict
+from pathlib import Path
 import requests
 import pandas as pd
+import json
 from config import Config
 
 class DataIngestion:
@@ -77,4 +79,12 @@ if __name__ == "__main__":
     filtered_result = ingest.filter_for_walkability(result)
     df = ingest.make_dataframe(filtered_result)
 
-    print(df.head())
+    # Write walkways to json
+    BASE_DIR = Path(__file__).resolve().parents[2]
+    DATA_DIR = BASE_DIR / "backend" / "data"
+    file_path = DATA_DIR / "walkways.json"
+
+    records = df.to_dict(orient="records")
+
+    with open(file_path, "w") as f:
+        json.dump(records, f, indent=2)
