@@ -9,3 +9,9 @@ __pycache__/
 .venv/
 venv/
 env/
+
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/project.xcworkspace
+*.xcuserdata/
