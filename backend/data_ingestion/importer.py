@@ -9,6 +9,9 @@ class DataIngestion:
         self.overpass_url = Config.OVERPASS_URL
 
     def fetch_routes(self, latitude, longitude, radius) -> Dict:
+        """
+        Fetch walkways around a certain coordinate.
+        """
         query = f"""
                 [out:json];
                 (
@@ -20,6 +23,28 @@ class DataIngestion:
                 """
         try:
             response = requests.post(self.overpass_url, data = {'data':query}, timeout= 60 )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(e)
+            return {}
+        
+    def fetch_irvine_walkways(self) -> Dict:
+        """
+        Fetch walkways in all of Irvine
+        """
+        query = """
+                [out:json][timeout:180];
+                area["name"="Irvine"]["boundary"="administrative"]["admin_level"="8"]->.irvine;
+                (
+                    way(area.irvine)["highway"~"footway|path|pedestrian|steps|track|residential|sidewalk"];
+                    way(area.irvine)["foot"~"yes|designated"];
+                    way(area.irvine)["access"!~"no|private"];
+                );
+                out body geom;
+                """
+        try:
+            response = requests.post(self.overpass_url, data={"data": query}, timeout=180)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -57,13 +82,15 @@ if __name__ == "__main__":
     ingest = DataIngestion()
 
     # Using 1000m radius to ensure we actually catch some data
-    result = ingest.fetch_routes(33.6430, -117.8412, 1000)
+    # result = ingest.fetch_routes(33.6430, -117.8412, 1000)
+    # filtered_result = ingest.filter_for_walkability(result)
+    result = ingest.fetch_irvine_walkways()
     filtered_result = ingest.filter_for_walkability(result)
 
     # Write walkways to json
     BASE_DIR = Path(__file__).resolve().parents[2]
     DATA_DIR = BASE_DIR / "backend" / "data_ingestion"
-    file_path = DATA_DIR / "walkways.json"
+    file_path = DATA_DIR / "data" / "irvine_walkways.json"
 
     with open(file_path, "w") as f:
         json.dump(filtered_result, f, indent=2)
