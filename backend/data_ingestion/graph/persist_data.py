@@ -31,6 +31,7 @@ def make_tables():
                 edge_id INTEGER PRIMARY KEY,
                 start_node INTEGER NOT NULL,
                 end_node INTEGER NOT NULL,
+                distance_m REAL NOT NULL DEFAULT 0.0,
                 way_id INTEGER NOT NULL,
                 tags TEXT NOT NULL
                 ); """)
@@ -59,16 +60,17 @@ def insert_edges(edges: dict[int, Edge]):
 
     cur.executemany("""
                     INSERT OR REPLACE INTO edges
-                    (edge_id, start_node, end_node, way_id, tags)
-                    VALUES (?, ?, ?, ?, ?);
+                    (edge_id, start_node, end_node, distance_m, way_id, tags)
+                    VALUES (?, ?, ?, ?, ?, ?);
                     """,
                     [
                         (
                             e.edge_id,
                             e.start_node,
                             e.end_node,
+                            e.distance_m,
                             e.way_id,
-                            json.dumps(e.tags)
+                            json.dumps(e.tags),
                         )
                         for e in edges.values()
                     ]
@@ -111,6 +113,7 @@ def load_edges() -> dict[int, Edge]:
             edge_id=row["edge_id"],
             start_node=row["start_node"],
             end_node=row["end_node"],
+            distance_m=row["distance_m"],
             way_id=row["way_id"],
             tags=json.loads(row["tags"])
         )
