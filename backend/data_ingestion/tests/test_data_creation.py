@@ -1,8 +1,35 @@
+import json
+from pathlib import Path
+
 from ..importer import DataIngestion
 from ..graph.graph_builder import build_graph
 from ..graph.persist_data import (make_tables, insert_nodes, insert_edges)
 
-def main():
+def test_irvine():
+    ingest = DataIngestion()
+
+    print("Get OSM data")
+    raw = ingest.fetch_irvine_walkways()
+    ways = ingest.filter_for_walkability(raw)
+
+    print("Build graph")
+    nodes, edges = build_graph(ways)
+
+    print(f"Built {len(nodes)} nodes")
+    print(f"Built {len(edges)} edges")
+
+    print("Creating database tables")
+    make_tables()
+
+    print("Populate nodes")
+    insert_nodes(nodes)
+
+    print("Populate edges")
+    insert_edges(edges)
+
+    print("Test complete")
+    
+def test_basic():
     ingest = DataIngestion()
 
     print("Get OSM data")
@@ -27,4 +54,4 @@ def main():
     print("Test complete")
 
 if __name__ == "__main__":
-    main()
+    test_irvine()
