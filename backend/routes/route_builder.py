@@ -1,4 +1,5 @@
 import json
+import heapq
 import math
 import random
 import time
@@ -33,7 +34,6 @@ def _haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) ->
     )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return radius_m * c
-
 
 @dataclass(frozen=True)
 class Route:
@@ -141,6 +141,12 @@ def _select_next_edge(
 
     return random.choices(viable_edges, weights=weights, k=1)[0]
 
+def _route_edge_overlap_ratio(candidate_edge_ids: Sequence[int], existing_edge_set: Set[int]) -> float:
+    if not candidate_edge_ids:
+        return 0.0
+
+    overlap_count = sum(1 for edge_id in candidate_edge_ids if edge_id in existing_edge_set)
+    return overlap_count / len(candidate_edge_ids)
 
 def _build_route_from_start(
     start_node_id: int,
@@ -194,6 +200,7 @@ def build_routes(
     score_tag: Optional[str] = None,
     tag_bias: float = 3.0,
     distance_bias: float = 1.0,
+    route_similarity_threshold: float = 1.0,
 ) -> List[Route]:
     """Build candidate routes.
 
@@ -209,6 +216,8 @@ def build_routes(
         raise ValueError("min_distance_m cannot exceed max_distance_m")
     if time_budget_s is not None and time_budget_s <= 0:
         raise ValueError("time_budget_s must be positive when provided")
+    if not 0 < route_similarity_threshold <= 1:
+        raise ValueError("route_similarity_threshold must be in the range (0, 1]")
 
     nodes = load_nodes()
     edges = load_edges()
@@ -224,7 +233,10 @@ def build_routes(
         matching_edge_ids = _load_tag_edge_ids(score_tag)
 
     routes: List[Route] = []
-    scored_routes: List[Tuple[Route, float]] = []
+    scored_routes_heap: List[Tuple[float, int, Tuple[int, ...], Route]] = []
+    scored_route_keys: Set[Tuple[int, ...]] = set()
+    scored_route_edge_sets: Dict[Tuple[int, ...], Set[int]] = {}
+    heap_counter = 0
     attempts = 0
     start_time = time.monotonic()
     while attempts < max_attempts:
@@ -248,15 +260,46 @@ def build_routes(
         )
         if route is not None:
             if score_tag and matching_edge_ids is not None:
+                route_key = tuple(route.edge_ids)
+                if route_key in scored_route_keys:
+                    continue
+
+                route_edge_set = set(route.edge_ids)
+                if route_similarity_threshold < 1.0 and any(
+                    _route_edge_overlap_ratio(route.edge_ids, existing_edge_set)
+                    >= route_similarity_threshold
+                    for existing_edge_set in scored_route_edge_sets.values()
+                ):
+                    continue
+
                 score = score_route_for_tag(route, edges, matching_edge_ids)
-                scored_routes.append((route, score))
-                scored_routes.sort(key=lambda x: x[1], reverse=True)
-                scored_routes = scored_routes[:max_routes]
+                if max_routes > 0:
+                    if len(scored_routes_heap) < max_routes:
+                        heapq.heappush(scored_routes_heap, (score, heap_counter, route_key, route))
+                        scored_route_keys.add(route_key)
+                        scored_route_edge_sets[route_key] = route_edge_set
+                        heap_counter += 1
+                    elif score > scored_routes_heap[0][0]:
+                        _, _, evicted_key, _ = heapq.heapreplace(
+                            scored_routes_heap, (score, heap_counter, route_key, route)
+                        )
+                        scored_route_keys.remove(evicted_key)
+                        scored_route_edge_sets.pop(evicted_key, None)
+                        scored_route_keys.add(route_key)
+                        scored_route_edge_sets[route_key] = route_edge_set
+                        heap_counter += 1
             else:
                 routes.append(route)
 
     if score_tag and matching_edge_ids is not None:
-        return [route for route, _ in scored_routes]
+        return [
+            route
+            for _, _, _, route in sorted(
+                scored_routes_heap,
+                key=lambda x: x[0],
+                reverse=True,
+            )
+        ]
     if time_budget_s is not None:
         return routes[:max_routes]
     return routes
@@ -323,21 +366,35 @@ PRESET_PARAMS = dict(
     # Test location is currently UCI campus (can adjust later)
     latitude=33.6430,
     longitude=-117.8412,
+
+    # Minimum distance of route and hard maximum distance
     min_distance_m=1000.0,
     max_distance_m=2000.0,
-    max_routes=1000000,
-    max_start_distance_m=MILES_TO_METERS,
-    max_attempts=1000000,
-    max_steps=20000,
+
+    # How far starting point can be from user location
+    max_start_distance_m=500.0,
+
+    # Route generation parameters 
+    max_routes=1000000, # Number of routes to return (after scoring and/or time budget)
+    max_attempts=1000000, # Upper bound on generation attempts (loop iterations trying random starts/routes)
+    max_steps=20000, # Max edges/hops per single route construction attempt before giving up.
     time_budget_s=30.0,
-    score_tag="grass",
-    tag_bias=3.0,
-    distance_bias=1.0,
+
+    # Tag-based scoring parameters
+    score_tag="paved", # Enables tag-aware behavior: routes are biased/scored using edges with this tag from the inverted index DB.
+    tag_bias=3.0, # Weight bonus when selecting candidate edges that match score_tag.
+    distance_bias=1.0, # Weight bonus for edges whose length is closer to the remaining target distance.
+    route_similarity_threshold=0.5, # How similar routes can be before being considered a duplicate (0.0 = no similarity allowed, 1.0 = identical routes only
 )
 
 if __name__ == "__main__":
     routes = build_routes(**PRESET_PARAMS)
-    scored_routes = score_routes_for_tag(routes, tag="grass")
+    selected_tag = PRESET_PARAMS.get("score_tag")
+    scored_routes = (
+        score_routes_for_tag(routes, tag=selected_tag)
+        if selected_tag
+        else [(route, 0.0) for route in routes]
+    )
 
     top_n = 10
     top_scored_routes = scored_routes[:top_n]
