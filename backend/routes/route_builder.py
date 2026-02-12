@@ -2,8 +2,9 @@ import json
 import math
 import random
 from pathlib import Path
+import sqlite3
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from backend.data_ingestion.graph.adjacency import Adjacency
 from backend.data_ingestion.graph.edge import Edge
@@ -11,7 +12,12 @@ from backend.data_ingestion.graph.node import Node
 from backend.data_ingestion.graph.persist_data import load_edges, load_nodes
 
 MILES_TO_METERS = 1609.344
-
+INVERTED_INDEX_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "data_ingestion"
+    / "index"
+    / "inverted_index.db"
+)
 
 def _haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     radius_m = 6371000
@@ -33,6 +39,49 @@ class Route:
     node_ids: Sequence[int]
     edge_ids: Sequence[int]
     distance_m: float
+
+def _load_tag_edge_ids(tag: str, db_path: Path = INVERTED_INDEX_PATH) -> Set[int]:
+    if not tag:
+        return set()
+
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT edge_id
+            FROM edge_features
+            WHERE feature = ?
+            """,
+            (tag,),
+        )
+        return {row[0] for row in cursor.fetchall()}
+
+
+def score_route_for_tag(route: Route, edges: Dict[int, Edge], matching_edge_ids: Set[int]) -> float:
+    if route.distance_m <= 0:
+        return 0.0
+
+    matched_distance_m = sum(
+        edges[edge_id].distance_m
+        for edge_id in route.edge_ids
+        if edge_id in matching_edge_ids
+    )
+    return matched_distance_m / route.distance_m
+
+
+def score_routes_for_tag(
+    routes: Sequence[Route],
+    tag: str,
+    edges: Optional[Dict[int, Edge]] = None,
+) -> List[Tuple[Route, float]]:
+    if edges is None:
+        edges = load_edges()
+
+    matching_edge_ids = _load_tag_edge_ids(tag)
+    scored_routes = [
+        (route, score_route_for_tag(route, edges, matching_edge_ids)) for route in routes
+    ]
+    return sorted(scored_routes, key=lambda x: x[1], reverse=True)
 
 
 def _candidate_start_nodes(
@@ -139,12 +188,24 @@ def build_routes(
     return routes
 
 
-def routes_to_geojson(routes: Sequence[Route], nodes: Dict[int, Node]) -> dict:
+def routes_to_geojson(
+    routes: Sequence[Route],
+    nodes: Dict[int, Node],
+    route_scores: Optional[Dict[Tuple[int, ...], float]] = None,
+) -> dict:
     features = []
     for route in routes:
         coordinates = [
             [nodes[node_id].lon, nodes[node_id].lat] for node_id in route.node_ids
         ]
+        properties = {
+            "distance_m": route.distance_m,
+            "edge_ids": list(route.edge_ids),
+            "node_ids": list(route.node_ids),
+        }
+        if route_scores is not None:
+            properties["tag_score"] = route_scores.get(tuple(route.edge_ids), 0.0)
+
         features.append(
             {
                 "type": "Feature",
@@ -154,14 +215,19 @@ def routes_to_geojson(routes: Sequence[Route], nodes: Dict[int, Node]) -> dict:
                     "edge_ids": list(route.edge_ids),
                     "node_ids": list(route.node_ids),
                 },
+                "properties": properties,
             }
         )
     return {"type": "FeatureCollection", "features": features}
 
 
-def write_routes_geojson(routes: Sequence[Route], path: Optional[Path] = None) -> Path:
+def write_routes_geojson(
+    routes: Sequence[Route],
+    path: Optional[Path] = None,
+    route_scores: Optional[Dict[Tuple[int, ...], float]] = None,
+) -> Path:
     nodes = load_nodes()
-    geojson = routes_to_geojson(routes, nodes)
+    geojson = routes_to_geojson(routes, nodes, route_scores=route_scores)
     if path is None:
         path = Path(__file__).resolve().parent / "routes.geojson"
     with path.open("w", encoding="utf-8") as handle:
@@ -191,10 +257,6 @@ def print_routes(routes: List[Route], nodes: Dict[int, Node], limit: int = 10) -
         print(f"  nodes={len(r.node_ids)} edges={len(r.edge_ids)}")
         print(f"  node_ids: {r.node_ids[:20]}{' ...' if len(r.node_ids) > 20 else ''}")
         print(f"  edge_ids: {r.edge_ids[:20]}{' ...' if len(r.edge_ids) > 20 else ''}")
-
-        # Uncomment if you want coordinates too (can be noisy)
-        # coords = [(nodes[n].lat, nodes[n].lon) for n in r.node_ids if n in nodes]
-        # print(f"  coords (first 5): {coords[:5]}")
         print()
 
 PRESET_PARAMS = dict(
@@ -210,9 +272,15 @@ PRESET_PARAMS = dict(
 
 if __name__ == "__main__":
     routes = build_routes(**PRESET_PARAMS)
-    write_routes_geojson(routes)
+    scored_routes = score_routes_for_tag(routes, tag="grass")
+
+    top_n = 10
+    top_scored_routes = scored_routes[:top_n]
+    top_routes = [route for route, _ in top_scored_routes]
+    route_scores = {tuple(route.edge_ids): score for route, score in top_scored_routes}
+
+    write_routes_geojson(top_routes, route_scores=route_scores)
 
     # Load nodes so we can optionally print coordinates
     nodes = load_nodes()
-
-    print_routes(routes, nodes, limit=10)
+    print_routes(top_routes, nodes, limit=top_n)
