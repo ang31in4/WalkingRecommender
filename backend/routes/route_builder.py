@@ -1,6 +1,7 @@
 import json
 import math
 import random
+import time
 from pathlib import Path
 import sqlite3
 from dataclasses import dataclass
@@ -102,6 +103,10 @@ def _select_next_edge(
     edge_ids: Iterable[int],
     edges: Dict[int, Edge],
     remaining_distance_m: float,
+    remaining_target_distance_m: Optional[float] = None,
+    matching_edge_ids: Optional[Set[int]] = None,
+    tag_bias: float = 0.0,
+    distance_bias: float = 0.0,
 ) -> Optional[int]:
     viable_edges = [
         edge_id
@@ -110,7 +115,31 @@ def _select_next_edge(
     ]
     if not viable_edges:
         return None
-    return random.choice(viable_edges)
+    if (
+        matching_edge_ids is None
+        and remaining_target_distance_m is None
+        or (tag_bias <= 0 and distance_bias <= 0)
+    ):
+        return random.choice(viable_edges)
+
+    max_viable_edge_distance = max(edges[edge_id].distance_m for edge_id in viable_edges)
+    distance_scale_m = max(max_viable_edge_distance, 1.0)
+    weights = []
+    for edge_id in viable_edges:
+        edge = edges[edge_id]
+        weight = 1.0
+
+        if matching_edge_ids is not None and edge_id in matching_edge_ids and tag_bias > 0:
+            weight += tag_bias
+
+        if remaining_target_distance_m is not None and distance_bias > 0:
+            distance_delta = abs(edge.distance_m - max(remaining_target_distance_m, 0.0))
+            closeness = 1.0 - min(distance_delta / distance_scale_m, 1.0)
+            weight += distance_bias * closeness
+
+        weights.append(max(weight, 0.0001))
+
+    return random.choices(viable_edges, weights=weights, k=1)[0]
 
 
 def _build_route_from_start(
@@ -120,17 +149,25 @@ def _build_route_from_start(
     min_distance_m: float,
     max_distance_m: float,
     max_steps: int,
+    matching_edge_ids: Optional[Set[int]] = None,
+    tag_bias: float = 0.0,
+    distance_bias: float = 0.0,
 ) -> Optional[Route]:
     node_ids = [start_node_id]
     edge_ids: List[int] = []
     distance_m = 0.0
     current_node_id = start_node_id
+    target_distance_m = (min_distance_m + max_distance_m) / 2
 
     for _ in range(max_steps):
         next_edge_id = _select_next_edge(
             adjacency.map.get(current_node_id, []),
             edges,
             max_distance_m - distance_m,
+            remaining_target_distance_m=target_distance_m - distance_m,
+            matching_edge_ids=matching_edge_ids,
+            tag_bias=tag_bias,
+            distance_bias=distance_bias,
         )
         if next_edge_id is None:
             break
@@ -153,13 +190,25 @@ def build_routes(
     max_start_distance_m: float = MILES_TO_METERS,
     max_attempts: int = 1000,
     max_steps: int = 200,
+    time_budget_s: Optional[float] = None,
+    score_tag: Optional[str] = None,
+    tag_bias: float = 3.0,
+    distance_bias: float = 1.0,
 ) -> List[Route]:
+    """Build candidate routes.
+
+    If ``time_budget_s`` is provided, route generation runs until the time budget
+    (or ``max_attempts``) is reached. In that mode, ``max_routes`` controls only
+    how many routes are returned.
+    """
     if min_distance_m <= 0:
         raise ValueError("min_distance_m must be positive")
     if max_distance_m <= 0:
         raise ValueError("max_distance_m must be positive")
     if min_distance_m > max_distance_m:
         raise ValueError("min_distance_m cannot exceed max_distance_m")
+    if time_budget_s is not None and time_budget_s <= 0:
+        raise ValueError("time_budget_s must be positive when provided")
 
     nodes = load_nodes()
     edges = load_edges()
@@ -170,9 +219,20 @@ def build_routes(
     if not start_nodes:
         return []
 
+    matching_edge_ids: Optional[Set[int]] = None
+    if score_tag:
+        matching_edge_ids = _load_tag_edge_ids(score_tag)
+
     routes: List[Route] = []
+    scored_routes: List[Tuple[Route, float]] = []
     attempts = 0
-    while attempts < max_attempts and len(routes) < max_routes:
+    start_time = time.monotonic()
+    while attempts < max_attempts:
+        if time_budget_s is not None and (time.monotonic() - start_time) >= time_budget_s:
+            break
+        if time_budget_s is None and len(routes) >= max_routes:
+            break
+
         attempts += 1
         start_node_id = random.choice(start_nodes)
         route = _build_route_from_start(
@@ -182,17 +242,29 @@ def build_routes(
             min_distance_m,
             max_distance_m,
             max_steps,
+            matching_edge_ids=matching_edge_ids,
+            tag_bias=tag_bias,
+            distance_bias=distance_bias,
         )
         if route is not None:
-            routes.append(route)
+            if score_tag and matching_edge_ids is not None:
+                score = score_route_for_tag(route, edges, matching_edge_ids)
+                scored_routes.append((route, score))
+                scored_routes.sort(key=lambda x: x[1], reverse=True)
+                scored_routes = scored_routes[:max_routes]
+            else:
+                routes.append(route)
+
+    if score_tag and matching_edge_ids is not None:
+        return [route for route, _ in scored_routes]
+    if time_budget_s is not None:
+        return routes[:max_routes]
     return routes
 
 
-def routes_to_geojson(
-    routes: Sequence[Route],
-    nodes: Dict[int, Node],
-    route_scores: Optional[Dict[Tuple[int, ...], float]] = None,
-) -> dict:
+def routes_to_geojson(routes: Sequence[Route],
+                      nodes: Dict[int, Node],
+                      route_scores: Optional[Dict[Tuple[int, ...], float]] = None,) -> dict:
     features = []
     for route in routes:
         coordinates = [
@@ -234,18 +306,6 @@ def write_routes_geojson(
         json.dump(geojson, handle, indent=2)
     return path
 
-
-PRESET_PARAMS = dict(
-    latitude=0.0,
-    longitude=0.0,
-    min_distance_m=1000.0,
-    max_distance_m=2000.0,
-    max_routes=100,
-    max_start_distance_m=MILES_TO_METERS,
-    max_attempts=1000,
-    max_steps=200,
-)
-
 def print_routes(routes: List[Route], nodes: Dict[int, Node], limit: int = 10) -> None:
     if not routes:
         print("No routes found.")
@@ -260,14 +320,19 @@ def print_routes(routes: List[Route], nodes: Dict[int, Node], limit: int = 10) -
         print()
 
 PRESET_PARAMS = dict(
+    # Test location is currently UCI campus (can adjust later)
     latitude=33.6430,
     longitude=-117.8412,
     min_distance_m=1000.0,
     max_distance_m=2000.0,
-    max_routes=100,
+    max_routes=1000000,
     max_start_distance_m=MILES_TO_METERS,
-    max_attempts=1000,
-    max_steps=200,
+    max_attempts=1000000,
+    max_steps=20000,
+    time_budget_s=30.0,
+    score_tag="grass",
+    tag_bias=3.0,
+    distance_bias=1.0,
 )
 
 if __name__ == "__main__":
@@ -284,3 +349,4 @@ if __name__ == "__main__":
     # Load nodes so we can optionally print coordinates
     nodes = load_nodes()
     print_routes(top_routes, nodes, limit=top_n)
+    
