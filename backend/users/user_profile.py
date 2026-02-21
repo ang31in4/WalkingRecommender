@@ -6,7 +6,7 @@ class UserProfile:
     user_id: str
 
     # hard constraints
-    requires_wheelchair: float
+    requires_wheelchair: bool
 
     # preferences
     accessibility_weight: float

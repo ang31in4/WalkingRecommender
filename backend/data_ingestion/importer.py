@@ -36,11 +36,11 @@ class DataIngestion:
         query = """
                 [out:json][timeout:180];
                 area["name"="Irvine"]["boundary"="administrative"]["admin_level"="8"]->.irvine;
-                (
-                    way(area.irvine)["highway"~"footway|path|pedestrian|steps|track|residential|sidewalk"];
-                    way(area.irvine)["foot"~"yes|designated"];
-                    way(area.irvine)["access"!~"no|private"];
-                );
+                ( 
+                way(area.irvine)["highway"~"footway|path|pedestrian|steps|track|residential|sidewalk"]; 
+                way(area.irvine)["foot"~"yes|designated"]; 
+                way(area.irvine)["access"!~"no|private"]; 
+                ); 
                 out body geom;
                 """
         try:
@@ -52,31 +52,73 @@ class DataIngestion:
             return {}
         
     def filter_for_walkability(self, routes):
-        filtered_routes = []
-        walkable_highways = {"footway", "path", "pedestrian",
-                             "steps", "residential", "track"}
-        
-        for element in routes.get("elements", []):
-            tags = element.get("tags", {})
+        filtered = []
 
-            if "highway" not in tags:
-                continue
-            
-            if tags.get("highway") not in walkable_highways:
-                continue
-            
-            if tags.get("access") in ("no", "private"):
-                continue
-            
-            if tags.get("foot") in ("no", "private"):
-                continue
-            
-            if "barrier" in tags:
+        walkable_highways = {
+            "footway", "path", "pedestrian", "steps", "corridor",
+            "residential", "living_street", "service", "unclassified",
+            "tertiary", "secondary", "primary",
+            "track", "cycleway",
+        }
+
+        hard_exclude = {"motorway", "motorway_link", "construction"}
+        deny = {"no", "private"}
+
+        for el in routes.get("elements", []):
+            tags = el.get("tags", {})
+            hwy = tags.get("highway")
+            if not hwy:
                 continue
 
-            filtered_routes.append(element)
+            if hwy in hard_exclude:
+                continue
 
-        return {"elements": filtered_routes}
+            # Optional: trunk is often sketchy to walk; only allow if explicitly walkable
+            if hwy in {"trunk", "trunk_link"} and tags.get("foot") not in {"yes", "designated"}:
+                continue
+
+            if hwy not in walkable_highways:
+                continue
+
+            if tags.get("access") in deny:
+                continue
+            if tags.get("foot") in deny:
+                continue
+
+            # Optional: drop “proposed”/“abandoned” style states if present
+            if tags.get("highway") == "proposed":
+                continue
+
+            filtered.append(el)
+
+        return {"elements": filtered}
+
+def overpass_to_geojson(elements):
+    features = []
+
+    for el in elements:
+        if el.get("type") != "way":
+            continue
+
+        geometry = el.get("geometry")
+        if not geometry or len(geometry) < 2:
+            continue
+
+        coords = [[pt["lon"], pt["lat"]] for pt in geometry]
+
+        features.append({
+            "type": "Feature",
+            "properties": el.get("tags", {}),
+            "geometry": {
+                "type": "LineString",
+                "coordinates": coords
+            }
+        })
+
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }
 
 if __name__ == "__main__":
     ingest = DataIngestion()
@@ -94,3 +136,5 @@ if __name__ == "__main__":
 
     with open(file_path, "w") as f:
         json.dump(filtered_result, f, indent=2)
+
+

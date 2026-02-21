@@ -364,21 +364,21 @@ def print_routes(routes: List[Route], nodes: Dict[int, Node], limit: int = 10) -
 
 PRESET_PARAMS = dict(
     # Test location is currently UCI campus (can adjust later)
-    latitude=33.6430,
-    longitude=-117.8412,
+    latitude=33.646117,
+    longitude=-117.843058,
 
     # Minimum distance of route and hard maximum distance
     min_distance_m=1000.0,
     max_distance_m=2000.0,
 
     # How far starting point can be from user location
-    max_start_distance_m=500.0,
+    max_start_distance_m=750.0,
 
     # Route generation parameters 
     max_routes=1000000, # Number of routes to return (after scoring and/or time budget)
     max_attempts=1000000, # Upper bound on generation attempts (loop iterations trying random starts/routes)
     max_steps=20000, # Max edges/hops per single route construction attempt before giving up.
-    time_budget_s=30.0,
+    time_budget_s=20.0,
 
     # Tag-based scoring parameters
     score_tag="paved", # Enables tag-aware behavior: routes are biased/scored using edges with this tag from the inverted index DB.
@@ -406,4 +406,3 @@ if __name__ == "__main__":
     # Load nodes so we can optionally print coordinates
     nodes = load_nodes()
     print_routes(top_routes, nodes, limit=top_n)
-    
