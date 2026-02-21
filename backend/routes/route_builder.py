@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 import sqlite3
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple, Union
 
 from backend.data_ingestion.graph.adjacency import Adjacency
 from backend.data_ingestion.graph.edge import Edge
@@ -41,6 +41,13 @@ class Route:
     edge_ids: Sequence[int]
     distance_m: float
 
+def _normalize_tags(tags: Optional[Union[str, Sequence[str]]]) -> List[str]:
+    if tags is None:
+        return []
+    if isinstance(tags, str):
+        return [tag.strip() for tag in tags.split(",") if tag.strip()]
+    return [tag.strip() for tag in tags if tag and tag.strip()]
+
 def _load_tag_edge_ids(tag: str, db_path: Path = INVERTED_INDEX_PATH) -> Set[int]:
     if not tag:
         return set()
@@ -57,6 +64,18 @@ def _load_tag_edge_ids(tag: str, db_path: Path = INVERTED_INDEX_PATH) -> Set[int
         )
         return {row[0] for row in cursor.fetchall()}
 
+def _load_matching_edge_ids(
+    tags: Optional[Union[str, Sequence[str]]],
+    db_path: Path = INVERTED_INDEX_PATH,
+) -> Set[int]:
+    normalized_tags = _normalize_tags(tags)
+    if not normalized_tags:
+        return set()
+
+    matching_edge_ids: Set[int] = set()
+    for tag in normalized_tags:
+        matching_edge_ids.update(_load_tag_edge_ids(tag, db_path=db_path))
+    return matching_edge_ids
 
 def score_route_for_tag(route: Route, edges: Dict[int, Edge], matching_edge_ids: Set[int]) -> float:
     if route.distance_m <= 0:
@@ -72,13 +91,13 @@ def score_route_for_tag(route: Route, edges: Dict[int, Edge], matching_edge_ids:
 
 def score_routes_for_tag(
     routes: Sequence[Route],
-    tag: str,
+    tag: Union[str, Sequence[str]],
     edges: Optional[Dict[int, Edge]] = None,
 ) -> List[Tuple[Route, float]]:
     if edges is None:
         edges = load_edges()
 
-    matching_edge_ids = _load_tag_edge_ids(tag)
+    matching_edge_ids = _load_matching_edge_ids(tag)
     scored_routes = [
         (route, score_route_for_tag(route, edges, matching_edge_ids)) for route in routes
     ]
@@ -218,7 +237,7 @@ def build_routes(
     max_attempts: int = 1000,
     max_steps: int = 200,
     time_budget_s: Optional[float] = None,
-    score_tag: Optional[str] = None,
+    score_tag: Optional[Union[str, Sequence[str]]] = None,
     tag_bias: float = 3.0,
     distance_bias: float = 1.0,
     route_similarity_threshold: float = 1.0,
@@ -254,8 +273,9 @@ def build_routes(
         return []
 
     matching_edge_ids: Optional[Set[int]] = None
-    if score_tag:
-        matching_edge_ids = _load_tag_edge_ids(score_tag)
+    normalized_score_tags = _normalize_tags(score_tag)
+    if normalized_score_tags:
+        matching_edge_ids = _load_matching_edge_ids(normalized_score_tags)
 
     routes: List[Route] = []
     scored_routes_heap: List[Tuple[float, int, Tuple[int, ...], Route]] = []
@@ -286,7 +306,7 @@ def build_routes(
             allow_edge_reuse=allow_edge_reuse,
         )
         if route is not None:
-            if score_tag and matching_edge_ids is not None:
+            if normalized_score_tags and matching_edge_ids is not None:
                 route_key = tuple(route.edge_ids)
                 if route_key in scored_route_keys:
                     continue
@@ -318,7 +338,7 @@ def build_routes(
             else:
                 routes.append(route)
 
-    if score_tag and matching_edge_ids is not None:
+    if normalized_score_tags and matching_edge_ids is not None:
         return [
             route
             for _, _, _, route in sorted(
@@ -399,7 +419,7 @@ PRESET_PARAMS = dict(
     max_distance_m=2000.0,
 
     # How far starting point can be from user location
-    max_start_distance_m=750.0,
+    max_start_distance_m=250.0,
 
     # Route generation parameters 
     max_routes=1000000, # Number of routes to return (after scoring and/or time budget)
@@ -408,10 +428,10 @@ PRESET_PARAMS = dict(
     time_budget_s=20.0,
 
     # Tag-based scoring parameters
-    score_tag="paved", # Enables tag-aware behavior: routes are biased/scored using edges with this tag from the inverted index DB.
+    score_tag=["paved, sidewalk, residential"], # Enables tag-aware behavior: routes are biased/scored using edges with these tags from the inverted index DB.
     tag_bias=1.0, # Weight bonus when selecting candidate edges that match score_tag.
     distance_bias=1.0, # Weight bonus for edges whose length is closer to the remaining target distance.
-    route_similarity_threshold=0.75, # How similar routes can be before being considered a duplicate (0.0 = no similarity allowed, 1.0 = identical routes only
+    route_similarity_threshold=0.5, # How similar routes can be before being considered a duplicate (0.0 = no similarity allowed, 1.0 = identical routes only
     edge_reuse_penalty=2.0, # Used only when allow_edge_reuse=True; higher values make repeated edges less likely.
     allow_edge_reuse=False, # Prevents using the same edge twice within a single generated route.
 )
