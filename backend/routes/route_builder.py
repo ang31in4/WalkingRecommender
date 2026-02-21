@@ -107,19 +107,29 @@ def _select_next_edge(
     matching_edge_ids: Optional[Set[int]] = None,
     tag_bias: float = 0.0,
     distance_bias: float = 0.0,
+    edge_visit_counts: Optional[Dict[int, int]] = None,
+    edge_reuse_penalty: float = 0.0,
+    allow_edge_reuse: bool = False,
 ) -> Optional[int]:
     viable_edges = [
         edge_id
         for edge_id in edge_ids
         if edges[edge_id].distance_m <= remaining_distance_m
     ]
+    if not allow_edge_reuse and edge_visit_counts is not None:
+        viable_edges = [
+            edge_id for edge_id in viable_edges if edge_visit_counts.get(edge_id, 0) == 0
+        ]
     if not viable_edges:
         return None
-    if (
-        matching_edge_ids is None
-        and remaining_target_distance_m is None
-        or (tag_bias <= 0 and distance_bias <= 0)
-    ):
+    has_weighted_signals = (
+        matching_edge_ids is not None
+        or remaining_target_distance_m is not None
+        or (edge_visit_counts is not None and edge_reuse_penalty > 0)
+        or tag_bias > 0
+        or distance_bias > 0
+    )
+    if not has_weighted_signals:
         return random.choice(viable_edges)
 
     max_viable_edge_distance = max(edges[edge_id].distance_m for edge_id in viable_edges)
@@ -136,6 +146,10 @@ def _select_next_edge(
             distance_delta = abs(edge.distance_m - max(remaining_target_distance_m, 0.0))
             closeness = 1.0 - min(distance_delta / distance_scale_m, 1.0)
             weight += distance_bias * closeness
+
+        if edge_visit_counts is not None and edge_reuse_penalty > 0:
+            prior_visits = edge_visit_counts.get(edge_id, 0)
+            weight /= 1.0 + (edge_reuse_penalty * prior_visits)
 
         weights.append(max(weight, 0.0001))
 
@@ -158,12 +172,15 @@ def _build_route_from_start(
     matching_edge_ids: Optional[Set[int]] = None,
     tag_bias: float = 0.0,
     distance_bias: float = 0.0,
+    edge_reuse_penalty: float = 0.0,
+    allow_edge_reuse: bool = False,
 ) -> Optional[Route]:
     node_ids = [start_node_id]
     edge_ids: List[int] = []
     distance_m = 0.0
     current_node_id = start_node_id
     target_distance_m = (min_distance_m + max_distance_m) / 2
+    edge_visit_counts: Dict[int, int] = {}
 
     for _ in range(max_steps):
         next_edge_id = _select_next_edge(
@@ -174,11 +191,15 @@ def _build_route_from_start(
             matching_edge_ids=matching_edge_ids,
             tag_bias=tag_bias,
             distance_bias=distance_bias,
+            edge_visit_counts=edge_visit_counts,
+            edge_reuse_penalty=edge_reuse_penalty,
+            allow_edge_reuse=allow_edge_reuse,
         )
         if next_edge_id is None:
             break
         edge = edges[next_edge_id]
         edge_ids.append(next_edge_id)
+        edge_visit_counts[next_edge_id] = edge_visit_counts.get(next_edge_id, 0) + 1
         distance_m += edge.distance_m
         current_node_id = edge.end_node
         node_ids.append(current_node_id)
@@ -201,6 +222,8 @@ def build_routes(
     tag_bias: float = 3.0,
     distance_bias: float = 1.0,
     route_similarity_threshold: float = 1.0,
+    edge_reuse_penalty: float = 2.0,
+    allow_edge_reuse: bool = False,
 ) -> List[Route]:
     """Build candidate routes.
 
@@ -218,6 +241,8 @@ def build_routes(
         raise ValueError("time_budget_s must be positive when provided")
     if not 0 < route_similarity_threshold <= 1:
         raise ValueError("route_similarity_threshold must be in the range (0, 1]")
+    if edge_reuse_penalty < 0:
+        raise ValueError("edge_reuse_penalty must be non-negative")
 
     nodes = load_nodes()
     edges = load_edges()
@@ -257,6 +282,8 @@ def build_routes(
             matching_edge_ids=matching_edge_ids,
             tag_bias=tag_bias,
             distance_bias=distance_bias,
+            edge_reuse_penalty=edge_reuse_penalty,
+            allow_edge_reuse=allow_edge_reuse,
         )
         if route is not None:
             if score_tag and matching_edge_ids is not None:
@@ -382,9 +409,11 @@ PRESET_PARAMS = dict(
 
     # Tag-based scoring parameters
     score_tag="paved", # Enables tag-aware behavior: routes are biased/scored using edges with this tag from the inverted index DB.
-    tag_bias=3.0, # Weight bonus when selecting candidate edges that match score_tag.
+    tag_bias=1.0, # Weight bonus when selecting candidate edges that match score_tag.
     distance_bias=1.0, # Weight bonus for edges whose length is closer to the remaining target distance.
-    route_similarity_threshold=0.5, # How similar routes can be before being considered a duplicate (0.0 = no similarity allowed, 1.0 = identical routes only
+    route_similarity_threshold=0.75, # How similar routes can be before being considered a duplicate (0.0 = no similarity allowed, 1.0 = identical routes only
+    edge_reuse_penalty=2.0, # Used only when allow_edge_reuse=True; higher values make repeated edges less likely.
+    allow_edge_reuse=False, # Prevents using the same edge twice within a single generated route.
 )
 
 if __name__ == "__main__":
