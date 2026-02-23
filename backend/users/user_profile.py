@@ -14,6 +14,7 @@ class UserProfile:
     urban_weight: float
     relaxed_weight: float
     difficulty_weight: float
+    safety_weight:  float
 
     def allowed(self, features:RouteFeatures):
         if self.requires_wheelchair and features.accessibility_score < 0.5:
@@ -28,6 +29,7 @@ class UserProfile:
             self.accessibility_weight * features.accessibility_score 
             + self.urban_weight * features.urban_score 
             + self.relaxed_weight * features.relaxed_walk_score 
+            + self.safety_weight * features.safety_score
             - self.difficulty_weight * features.difficulty_score
         )
         

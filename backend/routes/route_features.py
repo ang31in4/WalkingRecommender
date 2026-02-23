@@ -6,7 +6,7 @@ class RouteFeatures:
     sidewalk_ratio: float
     lit_ratio: float
     residential_ratio: float
-    major_road_ratio: float     # how often a road is used by vehicles 
+    major_road_ratio: float
     trail_ratio: float
     paved_ratio: float
     rough_surface_ratio: float
@@ -86,3 +86,18 @@ class RouteFeatures:
             + 0.2 * self.rough_surface_ratio
         )
         return min(1.0, score)
+    
+    '''
+    Safety: takes into account lighting, residential areas, and areas of heavy traffic
+    0.0 → feels exposed / traffic-heavy
+    0.5 → moderately comfortable
+    0.8+ → feels very safe
+    '''
+    @property
+    def safety_score(self) -> float:
+        score = (
+            0.4 * self.lit_ratio +
+            0.3 * self.residential_ratio -
+            0.3 * self.major_road_ratio
+        )
+        return score
