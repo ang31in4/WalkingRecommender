@@ -12,7 +12,7 @@ We can use these features in scoring and compare those scores with personal mode
 def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
     total = route.distance_m
 
-    sidewalk = lit = residential = trail = paved = accessible = steps = 0.0
+    sidewalk = lit = residential = major_road = trail = paved = rough = accessible = steps = 0.0
     incline_sum = 0.0
     incline_count = 0
 
@@ -30,12 +30,20 @@ def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
         
         if t.get("highway") == "residential":
             residential += d
+            major_road += d
         
+        if t.get("highway") in ("primary", "secondary"):
+            major_road += d
+
         if t.get("highway") in ("footway", "path"):
             trail += d
         
-        if t.get("surface") in ("asphalt", "concrete", "paved"):
+        if t.get("surface") in ("asphalt", "concrete", "paved", "bricks"):
             paved += d
+
+        if (t.get("surface") in ("gravel", "dirt", "sand", "unpaved")
+            or t.get("smoothness") == "bad"):
+            rough += d
         
         if (t.get("wheelchair") == "yes" 
             or t.get("smoothness") == "good"):
@@ -56,8 +64,10 @@ def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
         sidewalk_ratio=sidewalk / total,
         lit_ratio=lit / total,
         residential_ratio=residential / total,
+        major_road_ratio=major_road / total,
         trail_ratio=trail / total,
         paved_ratio=paved / total,
+        rough_surface_ratio=rough / total,
         accessible_ratio=accessible / total,
         steps_ratio=steps / total,
         avg_incline=(incline_sum / incline_count) if incline_count else None,
