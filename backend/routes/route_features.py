@@ -13,6 +13,7 @@ class RouteFeatures:
     accessible_ratio: float
     steps_ratio: float
     avg_incline: float | None = None
+    dog_friendly_ratio: float
 
     # scoring functions
     '''

@@ -2,6 +2,29 @@ from .route_builder import Route
 from .route_features import RouteFeatures
 from ..data_ingestion.graph.edge import Edge
 
+# whether a path is "dog-friendly" is more complex than simply using the "dog" tag
+def edge_dog_score(edge):
+    score = 0.0
+    t = edge.tags
+
+    if (t.get("sidewalk") and t["sidewalk"] != "no"
+        or t.get("footway") and t["footway"] == "sidewalk"):
+        score += 0.3
+    
+    if t.get("highway") in ("footway", "path"):
+        score += 0.3
+
+    if t.get("highway") == "residential":
+        score += 0.2
+    
+    if t.get("highway") in ("primary", "secondary"):
+        score -= 0.4
+    
+    if t.get("dog") != "no":
+        score += 0.2
+
+    return max(0.0, min(1.0, score))
+
 '''
 input: Route object and dictionary of edges
 output: RouteFeatures object
@@ -12,7 +35,7 @@ We can use these features in scoring and compare those scores with personal mode
 def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
     total = route.distance_m
 
-    sidewalk = lit = residential = major_road = trail = paved = rough = accessible = steps = 0.0
+    sidewalk = lit = residential = major_road = trail = paved = rough = accessible = steps = dog = 0.0
     incline_sum = 0.0
     incline_count = 0
 
@@ -59,6 +82,10 @@ def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
             except ValueError:
                 pass
 
+        dog_score = edge_dog_score(e)
+        if dog_score >= 0.6:
+            dog += d
+
     return RouteFeatures(
         length_m=total,
         sidewalk_ratio=sidewalk / total,
@@ -71,4 +98,5 @@ def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
         accessible_ratio=accessible / total,
         steps_ratio=steps / total,
         avg_incline=(incline_sum / incline_count) if incline_count else None,
+        dog_friendly_ratio=dog / total
     )

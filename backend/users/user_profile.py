@@ -7,9 +7,16 @@ class UserProfile:
 
     # hard constraints
     requires_wheelchair: bool
-    max_difficulty: float | None = None
+    avoid_steps: bool
+    
+    min_length_m: float | None
+    max_length_m: float | None
+    max_difficulty: float | None
+    
+    bringing_dog: bool
+    walking_at_night: bool
 
-    # preferences
+    # preference weights
     accessibility_weight: float
     urban_weight: float
     relaxed_weight: float
@@ -17,10 +24,39 @@ class UserProfile:
     safety_weight:  float
 
     def allowed(self, features:RouteFeatures):
-        if self.requires_wheelchair and features.accessibility_score < 0.5:
+        # mobility
+        if self.requires_wheelchair:
+            if features.accessibility_score < 0.5:
+                return False
+            if features.steps_ratio > 0:
+                return False
+        
+        if self.avoid_steps and features.steps_ratio > 0:
             return False
-        if self.max_difficulty is not None and features.difficulty_score > self.max_difficulty:
-            return False
+        
+        # distance
+        if self.min_length_m is not None:
+            if features.length_m < self.min_length_m:
+                return False
+
+        if self.max_length_m is not None:
+            if features.length_m > self.max_length_m:
+                return False
+
+        # difficulty
+        if self.max_difficulty is not None:
+            if features.difficulty_score > self.max_difficulty:
+                return False
+        
+        # dog constraint
+        if self.bringing_dog:
+            if features.dog_friendly_ratio < 0.7:
+                return False
+        
+        # night safety
+        if self.walking_at_night:
+            if features.lit_ratio < 0.5:
+                return False
         
         return True
 
