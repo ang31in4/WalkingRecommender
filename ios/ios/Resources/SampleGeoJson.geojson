@@ -370,8 +370,11 @@
     ]
   },
   "properties": {
+    "name": "Campus Loop Trail",
     "length_m": 1562.73,
     "length_mi": 0.97,
-    "node_count": 91
+    "node_count": 91,
+    "difficulty": "easy"
   }
 }
+

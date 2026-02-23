@@ -1,52 +1,36 @@
-import MapKit
+import Foundation
+import CoreLocation
 
-struct PolygonInfo: Decodable {
-    let type: String?
-    let geometry : String?
-    let properties: Data?
-}
-
-struct Geometry: Decodable {
-    let type: String?
-    let coordinates: [[Double]]?
-}
-
-struct Properties: Decodable {
-    let length_mile: Int
-    let length_m: Int
-    let count: Int
-}
-
-func loadGeoJson() {
+func loadGeoJson() -> [Route] {
     guard let url = Bundle.main.url(forResource: "SampleGeoJson", withExtension: "geojson") else {
         print("Error: file not found in Bundle")
-        return
+        return []
     }
-    var geoJson = [MKGeoJSONObject]()
-    var overlays = [MKOverlay]()
-    
-    do {
-        let data = try Data(contentsOf: url)
-        geoJson = try MKGeoJSONDecoder().decode(data)
-    } catch {
-        fatalError("Unable to decode Json")
+
+    guard let data = try? Data(contentsOf: url) else {
+        print("Error: couldn't read file")
+        return []
     }
-    
-    for item in geoJson {
-        if let feature = item as? MKGeoJSONFeature {
-            let geometry = feature.geometry
-            var polygonInfo: PolygonInfo? = nil
-            
-            if let propertiesData = feature.properties {
-                polygonInfo = try? JSONDecoder.init().decode(PolygonInfo.self, from: propertiesData)
-            }
-            
-            for geo in feature.geometry {
-                if let polygon = geo as? MKPolyline {
-                    overlays.append(polygon)
-                }
-            }
+
+    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let type = json["type"] as? String else {
+        return []
+    }
+
+    let decoder = JSONDecoder()
+    if type == "Feature" {
+        if let route = try? decoder.decode(Route.self, from: data) {
+            return [route]
+        }
+    } else if type == "FeatureCollection",
+              let features = json["features"] as? [[String: Any]] {
+        return features.compactMap { feature in
+            guard let featureData = try? JSONSerialization.data(withJSONObject: feature),
+                  let route = try? decoder.decode(Route.self, from: featureData) else { return nil }
+            return route
         }
     }
+
+    return []
 }
 
