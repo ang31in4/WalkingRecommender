@@ -22,10 +22,19 @@ def make_table():
                 user_id TEXT PRIMARY KEY,
 
                 requires_wheelchair INTEGER,
+                avoid_steps INTEGER,
+                
+                min_length_m REAL,
+                max_length_m REAL,
+                max_difficulty REAL,
+                
+                bringing_dog INTEGER,
 
                 accessibility_weight REAL,
                 urban_weight REAL,
-                relaxed_weight REAL
+                relaxed_weight REAL,
+                difficulty_weight REAL,
+                safety_weight REAL
                 ); """)
 
     conn.commit()
@@ -36,16 +45,35 @@ def insert_user_profile(user:UserProfile):
     cur = conn.cursor()
 
     cur.execute("""
-                INSERT INTO users 
-                (user_id, requires_wheelchair, accessibility_weight, urban_weight, relaxed_weight)
-                VALUES (?, ?, ?, ?, ?);
+                INSERT INTO users (
+                    user_id,
+                    requires_wheelchair,
+                    avoid_steps,
+                    min_length_m,
+                    max_length_m,
+                    max_difficulty,
+                    bringing_dog,
+                    accessibility_weight,
+                    urban_weight,
+                    relaxed_weight,
+                    difficulty_weight,
+                    safety_weight
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     user.user_id,
                     user.requires_wheelchair,
+                    user.avoid_steps,
+                    user.min_length_m,
+                    user.max_length_m,
+                    user.max_difficulty,
+                    user.bringing_dog,
                     user.accessibility_weight,
                     user.urban_weight,
-                    user.relaxed_weight
+                    user.relaxed_weight,
+                    user.difficulty_weight,
+                    user.safety_weight
                 )
             )
 
@@ -63,7 +91,14 @@ def load_user_profile(user_id: str) -> UserProfile:
     return UserProfile(
         user_id=row["user_id"],
         requires_wheelchair=bool(row["requires_wheelchair"]),
+        avoid_steps=bool(row["avoid_steps"]),
+        min_length_m=row["min_length_m"],
+        max_length_m=row["max_length_m"],
+        max_difficulty=row["max_difficulty"],
+        bringing_dog=row["bringing_dog"],
         accessibility_weight=row["accessibility_weight"],
         urban_weight=row["urban_weight"],
         relaxed_weight=row["relaxed_weight"],
+        difficulty_weight=row["difficulty_weight"],
+        safety_weight=row["safety_weight"]
     )

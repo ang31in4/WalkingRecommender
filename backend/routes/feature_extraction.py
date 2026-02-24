@@ -75,16 +75,16 @@ def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
         if t.get("highway") == "steps":
             steps += d
 
+        dog_score = edge_dog_score(e)
+        if dog_score >= 0.6:
+            dog += d
+        
         if "incline" in t:
             try:
                 incline_sum += float(t["incline"].strip("%")) / 100
                 incline_count += 1
             except ValueError:
                 pass
-
-        dog_score = edge_dog_score(e)
-        if dog_score >= 0.6:
-            dog += d
 
     return RouteFeatures(
         length_m=total,
@@ -97,6 +97,6 @@ def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
         rough_surface_ratio=rough / total,
         accessible_ratio=accessible / total,
         steps_ratio=steps / total,
+        dog_friendly_ratio=dog / total,
         avg_incline=(incline_sum / incline_count) if incline_count else None,
-        dog_friendly_ratio=dog / total
     )

@@ -14,7 +14,6 @@ class UserProfile:
     max_difficulty: float | None
     
     bringing_dog: bool
-    walking_at_night: bool
 
     # preference weights
     accessibility_weight: float
@@ -51,11 +50,6 @@ class UserProfile:
         # dog constraint
         if self.bringing_dog:
             if features.dog_friendly_ratio < 0.7:
-                return False
-        
-        # night safety
-        if self.walking_at_night:
-            if features.lit_ratio < 0.5:
                 return False
         
         return True
