@@ -63,12 +63,12 @@ def insert_user_profile(user:UserProfile):
                 """,
                 (
                     user.user_id,
-                    user.requires_wheelchair,
-                    user.avoid_steps,
+                    int(user.requires_wheelchair),
+                    int(user.avoid_steps),
                     user.min_length_m,
                     user.max_length_m,
                     user.max_difficulty,
-                    user.bringing_dog,
+                    int(user.bringing_dog),
                     user.accessibility_weight,
                     user.urban_weight,
                     user.relaxed_weight,
@@ -95,10 +95,66 @@ def load_user_profile(user_id: str) -> UserProfile:
         min_length_m=row["min_length_m"],
         max_length_m=row["max_length_m"],
         max_difficulty=row["max_difficulty"],
-        bringing_dog=row["bringing_dog"],
+        bringing_dog=bool(row["bringing_dog"]),
         accessibility_weight=row["accessibility_weight"],
         urban_weight=row["urban_weight"],
         relaxed_weight=row["relaxed_weight"],
         difficulty_weight=row["difficulty_weight"],
         safety_weight=row["safety_weight"]
     )
+
+'''
+Use this function to modify or create a user profile.
+Takes a new or updated UserProfile as input. If the user exists, it will update the info.
+If the user does not exist, it will add it to the table.
+'''
+def save_user_profile(user: UserProfile):
+    conn = make_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO users (
+            user_id,
+            requires_wheelchair,
+            avoid_steps,
+            min_length_m,
+            max_length_m,
+            max_difficulty,
+            bringing_dog,
+            accessibility_weight,
+            urban_weight,
+            relaxed_weight,
+            difficulty_weight,
+            safety_weight
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            requires_wheelchair = excluded.requires_wheelchair,
+            avoid_steps = excluded.avoid_steps,
+            min_length_m = excluded.min_length_m,
+            max_length_m = excluded.max_length_m,
+            max_difficulty = excluded.max_difficulty,
+            bringing_dog = excluded.bringing_dog,
+            accessibility_weight = excluded.accessibility_weight,
+            urban_weight = excluded.urban_weight,
+            relaxed_weight = excluded.relaxed_weight,
+            difficulty_weight = excluded.difficulty_weight,
+            safety_weight = excluded.safety_weight;
+    """,
+    (
+        user.user_id,
+        int(user.requires_wheelchair),
+        int(user.avoid_steps),
+        user.min_length_m,
+        user.max_length_m,
+        user.max_difficulty,
+        int(user.bringing_dog),
+        user.accessibility_weight,
+        user.urban_weight,
+        user.relaxed_weight,
+        user.difficulty_weight,
+        user.safety_weight
+    ))
+
+    conn.commit()
+    conn.close()
