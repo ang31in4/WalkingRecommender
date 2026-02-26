@@ -64,3 +64,21 @@ class UserProfile:
         )
         
         return score
+    
+    def normalize_weights(self):
+        total = (
+            self.accessibility_weight +
+            self.urban_weight +
+            self.relaxed_weight +
+            self.difficulty_weight +
+            self.safety_weight
+        )
+
+        if total == 0:
+            return
+
+        self.accessibility_weight /= total
+        self.urban_weight /= total
+        self.relaxed_weight /= total
+        self.difficulty_weight /= total
+        self.safety_weight /= total

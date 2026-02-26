@@ -18,10 +18,10 @@ class RouteFeatures:
     # scoring functions
     '''
     Urban:
-        -0.45  → hostile / awkward
-        0.2  → mixed / inconsistent
-        0.6  → comfortable
-        0.9+ → very city-friendly
+        0.0-0.2  → hostile / awkward
+        0.3-0.5  → mixed / inconsistent
+        0.6-0.8  → comfortable
+        0.9-1.0  → very city-friendly
     '''
     @property
     def urban_score(self) -> float:
@@ -32,7 +32,7 @@ class RouteFeatures:
             - 0.20 * self.steps_ratio
             - 0.25 * self.major_road_ratio
         )
-        return score
+        return max(0.0, min(1.0, score))
 
     '''
     Accessibility: ranges from [0,1]
@@ -54,20 +54,20 @@ class RouteFeatures:
 
     '''
     Relaxed walk:
-        -0.5 → stressful / effortful
-        0.2 → neutral
-        0.5 → pleasant
-        0.7+ → very relaxed
+        0.0 → stressful / effortful
+        0.3 → neutral
+        0.6 → pleasant
+        0.8+ → very relaxed
     '''
     @property
     def relaxed_walk_score(self) -> float:
         score = (
-            0.4 * self.trail_ratio 
-            + 0.3 * self.residential_ratio 
-            - 0.2 * self.steps_ratio
+            0.6 * self.trail_ratio 
+            + 0.4 * self.residential_ratio 
+            - 0.3 * self.steps_ratio
             - 0.3 * self.major_road_ratio
         )
-        return score
+        return max(0.0, score)
 
     '''
     Difficulty:
@@ -97,8 +97,8 @@ class RouteFeatures:
     @property
     def safety_score(self) -> float:
         score = (
-            0.4 * self.lit_ratio +
-            0.3 * self.residential_ratio -
-            0.3 * self.major_road_ratio
+            0.6 * self.lit_ratio
+            + 0.4 * self.residential_ratio
+            - 0.3 * self.major_road_ratio
         )
-        return score
+        return max(0.0, score)
