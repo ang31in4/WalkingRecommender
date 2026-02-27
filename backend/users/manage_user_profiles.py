@@ -88,6 +88,9 @@ def load_user_profile(user_id: str) -> UserProfile:
         "SELECT * FROM users WHERE user_id = ?", (user_id,)
     ).fetchone()
 
+    conn.commit()
+    conn.close()
+
     return UserProfile(
         user_id=row["user_id"],
         requires_wheelchair=bool(row["requires_wheelchair"]),
