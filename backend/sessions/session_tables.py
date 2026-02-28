@@ -30,7 +30,7 @@ def make_interaction_table(conn):
 
     cur.execute("""
                 CREATE TABLE IF NOT EXISTS session_interaction (
-                interaction_id INTEGER PRIMARY KEY,
+                interaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id INTEGER,
                 timestamp DATETIME,
                 type TEXT,
@@ -59,7 +59,6 @@ def make_route_selected_table(conn):
                 interaction_id INTEGER PRIMARY KEY,
                 accessibility_score REAL,
                 urban_score REAL,
-                relaxed_score REAL,
                 difficulty_score REAL,
                 safety_score REAL,
                 FOREIGN KEY (interaction_id) REFERENCES session_interaction(interaction_id)
@@ -97,6 +96,9 @@ def insert_interaction(conn, session_id, timestamp, type):
                     type
                 )
             )
+    interaction_id = cur.lastrowid
+    
+    return interaction_id
 
 def insert_filters(conn, interaction_id, filters:SearchFilters):
     cur = conn.cursor()
@@ -130,17 +132,15 @@ def insert_selected_route(conn, interaction_id, route:RouteFeatures):
                     interaction_id,
                     accessibility_score,
                     urban_score,
-                    relaxed_score,
                     difficulty_score,
                     safety_score
                 )
-                VALUES (?, ?, ? ,? , ?, ?);
+                VALUES (?, ?, ? ,? , ?);
                 """, 
                 (
                     interaction_id,
                     route.accessibility_score,
                     route.urban_score,
-                    route.relaxed_walk_score,
                     route.difficulty_score,
                     route.safety_score
                 )

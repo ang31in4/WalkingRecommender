@@ -53,23 +53,6 @@ class RouteFeatures:
         return max(0.0, score)
 
     '''
-    Relaxed walk:
-        0.0 → stressful / effortful
-        0.3 → neutral
-        0.6 → pleasant
-        0.8+ → very relaxed
-    '''
-    @property
-    def relaxed_walk_score(self) -> float:
-        score = (
-            0.6 * self.trail_ratio 
-            + 0.4 * self.residential_ratio 
-            - 0.3 * self.steps_ratio
-            - 0.3 * self.major_road_ratio
-        )
-        return max(0.0, score)
-
-    '''
     Difficulty:
         0.0 → flat, paved, easy
         0.2 → noticeable effort
