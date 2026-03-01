@@ -372,11 +372,6 @@ def routes_to_geojson(routes: Sequence[Route],
             {
                 "type": "Feature",
                 "geometry": {"type": "LineString", "coordinates": coordinates},
-                "properties": {
-                    "distance_m": route.distance_m,
-                    "edge_ids": list(route.edge_ids),
-                    "node_ids": list(route.node_ids),
-                },
                 "properties": properties,
             }
         )

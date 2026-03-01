@@ -7,10 +7,10 @@ extension CLLocationCoordinate2D {
     static let uci = CLLocationCoordinate2D(latitude: 33.6405, longitude: -117.8443)
 }
 
-class LocationSearch : NSObject, ObservableObject, CLLocationManagerDelegate {
-    var searchText: String = ""
-    var searchedCoordinate: CLLocationCoordinate2D?
-    var currentCoordinate: CLLocationCoordinate2D?
+class LocationSearch: NSObject, ObservableObject, CLLocationManagerDelegate {
+    @Published var searchText: String = ""
+    @Published var searchedCoordinate: CLLocationCoordinate2D?
+    @Published var currentCoordinate: CLLocationCoordinate2D?
     var isSearch: Bool = false
     
     var activeLocation: CLLocationCoordinate2D {

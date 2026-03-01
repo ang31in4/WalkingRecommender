@@ -13,7 +13,7 @@ struct RouteCard: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(width: UIScreen.main.bounds.width * 2/5, alignment: .leading)
         .padding()
         .frame(height: 100)
         .background(Color.blue.opacity(0.3))
@@ -27,13 +27,16 @@ struct RouteCard_SameCategory: View {
     let route: Route
 
     var body: some View {
+        
         VStack(alignment: .leading) {
             Text(title)
                 .font(.title2)
                 .fontWeight(.semibold)
-            HStack {
-                ForEach(1...3, id: \.self) { _ in
-                    RouteCard(route: route)
+            ScrollView(.horizontal) {
+                HStack {
+                    ForEach(1...3, id: \.self) { _ in
+                        RouteCard(route: route)
+                    }
                 }
             }
         }
@@ -41,11 +44,16 @@ struct RouteCard_SameCategory: View {
 }
 
 struct RouteCard_AllCategories: View {
-    private let routes = loadGeoJson()
+    @State private var routes: [Route] = []
+    @State private var isLoading = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            if let route = routes.first {
+            if isLoading {
+                ProgressView("Loading routes…")
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else if let route = routes.first {
                 RouteCard_SameCategory(title: "Top paths nearby", route: route)
                 RouteCard_SameCategory(title: "5000 steps Blitz", route: route)
                 RouteCard_SameCategory(title: "A traffic-free zone", route: route)
@@ -53,6 +61,11 @@ struct RouteCard_AllCategories: View {
                 Text("No routes available")
                     .foregroundColor(.secondary)
             }
+        }
+        .task {
+            let fromAPI = await loadGeoJsonFromAPI()
+            routes = fromAPI.isEmpty ? loadGeoJson() : fromAPI ;
+            isLoading = false
         }
     }
 }

@@ -10,10 +10,9 @@ struct ContentView: View {
             HStack(alignment: .center) {
                 InputView()
                 FilterButtonView(filterViewModel: filterViewModel)
-            }
-            RouteCard_AllCategories()
+            }.padding(20)
+            RouteCard_AllCategories().padding(30)
         }
-        .padding(20)
         .sheet(isPresented: $filterViewModel.isFilterSheetPresented) {
             FilterSheetView(filterViewModel: filterViewModel)
         }

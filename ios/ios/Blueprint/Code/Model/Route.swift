@@ -21,6 +21,7 @@ struct Route: Identifiable, Decodable {
         case name
         case lengthMiles = "length_mi"
         case lengthMeters = "length_m"
+        case distanceM = "distance_m"
         case difficulty
     }
     
@@ -35,8 +36,14 @@ struct Route: Identifiable, Decodable {
             CLLocationCoordinate2D(latitude: coord[1], longitude: coord[0])
         }
         
-        self.name = try propertiesContainer.decode(String.self, forKey: .name)
-        self.length = try propertiesContainer.decode(Double.self, forKey: .lengthMiles)
+        self.name = try propertiesContainer.decodeIfPresent(String.self, forKey: .name) ?? "Route"
+        if let mi = try propertiesContainer.decodeIfPresent(Double.self, forKey: .lengthMiles) {
+            self.length = mi
+        } else if let m = try propertiesContainer.decodeIfPresent(Double.self, forKey: .distanceM) {
+            self.length = m / 1609.34
+        } else {
+            self.length = 0
+        }
         self.difficulty = try propertiesContainer.decodeIfPresent(String.self, forKey: .difficulty) ?? "moderate"
         self.id = UUID().uuidString
     }

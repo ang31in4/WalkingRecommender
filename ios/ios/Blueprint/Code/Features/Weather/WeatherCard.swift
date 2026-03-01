@@ -34,13 +34,13 @@ struct WeatherView: View {
     var body: some View {
         GeometryReader {
             geo in let cardWidth = geo.size.width
-            let cardHeight = cardWidth / 1.95
-            ZStack (alignment: .bottomLeading){
+            let cardHeight = cardWidth / 2.25
+            ZStack (alignment: .topLeading){
                 ImageView()
                 GradientOverlay(width:cardWidth, height: cardHeight)
-                WeatherInfoView()
+                WeatherInfoView().padding(20)
             }
-            .frame(width: cardWidth, height:cardHeight)
+//            .frame(width: cardWidth, height:cardHeight)
         }
     }
 }
@@ -49,13 +49,12 @@ struct ImageView: View {
     var body: some View {
         GeometryReader {
             geo in let cardWidth = geo.size.width
-            let cardHeight = cardWidth / 1.95
+            let cardHeight = cardWidth / 2.25
             Image("beautiful-park")
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: cardWidth, height: cardHeight)
                 .clipped()
-                .cornerRadius(15)
         }
     }
 }
@@ -73,6 +72,5 @@ struct GradientOverlay: View {
             endPoint: .bottom
         )
         .frame(width: width, height: height)
-        .cornerRadius(cornerRadius)
     }
 }
