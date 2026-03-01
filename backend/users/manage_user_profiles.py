@@ -32,7 +32,6 @@ def make_table():
 
                 accessibility_weight REAL,
                 urban_weight REAL,
-                relaxed_weight REAL,
                 difficulty_weight REAL,
                 safety_weight REAL
                 ); """)
@@ -55,11 +54,10 @@ def insert_user_profile(user:UserProfile):
                     bringing_dog,
                     accessibility_weight,
                     urban_weight,
-                    relaxed_weight,
                     difficulty_weight,
                     safety_weight
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     user.user_id,
@@ -71,7 +69,6 @@ def insert_user_profile(user:UserProfile):
                     int(user.bringing_dog),
                     user.accessibility_weight,
                     user.urban_weight,
-                    user.relaxed_weight,
                     user.difficulty_weight,
                     user.safety_weight
                 )
@@ -101,7 +98,6 @@ def load_user_profile(user_id: str) -> UserProfile:
         bringing_dog=bool(row["bringing_dog"]),
         accessibility_weight=row["accessibility_weight"],
         urban_weight=row["urban_weight"],
-        relaxed_weight=row["relaxed_weight"],
         difficulty_weight=row["difficulty_weight"],
         safety_weight=row["safety_weight"]
     )
@@ -126,11 +122,10 @@ def save_user_profile(user: UserProfile):
             bringing_dog,
             accessibility_weight,
             urban_weight,
-            relaxed_weight,
             difficulty_weight,
             safety_weight
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_id) DO UPDATE SET
             requires_wheelchair = excluded.requires_wheelchair,
             avoid_steps = excluded.avoid_steps,
@@ -140,7 +135,6 @@ def save_user_profile(user: UserProfile):
             bringing_dog = excluded.bringing_dog,
             accessibility_weight = excluded.accessibility_weight,
             urban_weight = excluded.urban_weight,
-            relaxed_weight = excluded.relaxed_weight,
             difficulty_weight = excluded.difficulty_weight,
             safety_weight = excluded.safety_weight;
     """,
@@ -154,7 +148,6 @@ def save_user_profile(user: UserProfile):
         int(user.bringing_dog),
         user.accessibility_weight,
         user.urban_weight,
-        user.relaxed_weight,
         user.difficulty_weight,
         user.safety_weight
     ))

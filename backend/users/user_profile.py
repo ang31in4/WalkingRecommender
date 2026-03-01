@@ -18,7 +18,6 @@ class UserProfile:
     # preference weights
     accessibility_weight: float
     urban_weight: float
-    relaxed_weight: float
     difficulty_weight: float
     safety_weight:  float
 
@@ -58,7 +57,6 @@ class UserProfile:
         score = ( 
             self.accessibility_weight * features.accessibility_score 
             + self.urban_weight * features.urban_score 
-            + self.relaxed_weight * features.relaxed_walk_score 
             + self.safety_weight * features.safety_score
             - self.difficulty_weight * features.difficulty_score
         )
@@ -69,7 +67,6 @@ class UserProfile:
         total = (
             self.accessibility_weight +
             self.urban_weight +
-            self.relaxed_weight +
             self.difficulty_weight +
             self.safety_weight
         )
@@ -79,6 +76,5 @@ class UserProfile:
 
         self.accessibility_weight /= total
         self.urban_weight /= total
-        self.relaxed_weight /= total
         self.difficulty_weight /= total
         self.safety_weight /= total

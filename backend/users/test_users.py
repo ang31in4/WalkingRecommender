@@ -19,7 +19,6 @@ CASUAL_WALKER = UserProfile(
     # preference weights
     accessibility_weight=0.8,
     urban_weight=1.0,
-    relaxed_weight=1.3,
     difficulty_weight=1.0,
     safety_weight=1.1,
 )
@@ -40,7 +39,6 @@ ACCESS_WALKER = UserProfile(
     # preference weights
     accessibility_weight=2.0,
     urban_weight=1.2,
-    relaxed_weight=0.5,
     difficulty_weight=1.5,
     safety_weight=1.8,
 )
