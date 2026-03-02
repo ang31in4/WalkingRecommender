@@ -1,6 +1,27 @@
 import Foundation
 import CoreLocation
 
+func filterRoutes(_ routes: [Route], by filter: FilterModel) -> [Route] {
+    guard !filter.isDefault else { return routes }
+
+    return routes.filter { route in
+        let matchesDifficulty: Bool = {
+            guard let diff = filter.selectedDifficulty else { return true }
+            return route.difficulty.lowercased() == diff.rawValue.lowercased()
+        }()
+        let matchesDistance: Bool = {
+            guard let dist = filter.selectedDistance else { return true }
+            let miles = route.length
+            switch dist {
+            case .lessThanHalfMile: return miles < 0.5
+            case .fromHalfTo1Mile: return miles >= 0.5 && miles <= 1.0
+            case .greaterThan1Mile: return miles > 1.0
+            }
+        }()
+        return matchesDifficulty && matchesDistance
+    }
+}
+
 func loadGeoJson() -> [Route] {
     guard let url = Bundle.main.url(forResource: "SampleGeoJson", withExtension: "geojson") else {
         print("Error: file not found in Bundle")
@@ -34,8 +55,15 @@ func loadGeoJson() -> [Route] {
     return []
 }
 
-func loadGeoJsonFromAPI() async -> [Route] {
-    guard let url = URL(string: "http://localhost:5050/api/routes") else { return [] }
+func loadGeoJsonFromAPI(latitude: Double, longitude: Double, minDistanceM: Double, maxDistanceM: Double) async -> [Route] {
+    var components = URLComponents(string: "http://localhost:5050/api/routes")!
+    components.queryItems = [
+        URLQueryItem(name: "latitude", value: String(latitude)),
+        URLQueryItem(name: "longitude", value: String(longitude)),
+        URLQueryItem(name: "min_distance_m", value: String(minDistanceM)),
+        URLQueryItem(name: "max_distance_m", value: String(maxDistanceM)),
+    ]
+    guard let url = components.url else { return [] }
     var request = URLRequest(url: url)
     request.timeoutInterval = 60
 

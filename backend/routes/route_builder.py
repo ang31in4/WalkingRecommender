@@ -351,7 +351,6 @@ def build_routes(
         return routes[:max_routes]
     return routes
 
-
 def routes_to_geojson(routes: Sequence[Route],
                       nodes: Dict[int, Node],
                       route_scores: Optional[Dict[Tuple[int, ...], float]] = None,) -> dict:

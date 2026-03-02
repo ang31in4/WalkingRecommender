@@ -2,8 +2,8 @@ import Foundation
 
 struct User {
     let userId: String
-    let username: String
-    let password: String
+//    let username: String
+//    let password: String
     let user_choice: FilterModel?
 }
 

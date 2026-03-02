@@ -7,7 +7,9 @@ class FilterViewModel: ObservableObject {
     @Published var isFilterSheetPresented: Bool = false
 
     var activeFiltersCount: Int {
-        var count = 2
+        var count = 0
+        if currentFilter.selectedDifficulty != nil { count += 1 }
+        if currentFilter.selectedDistance != nil { count += 1 }
         count += currentFilter.selectedSuitability.count
         return count
     }
@@ -29,6 +31,7 @@ class FilterViewModel: ObservableObject {
     }
 
     func setSuitability(_ suitability: Suitability, selected: Bool) {
+        objectWillChange.send()
         if selected {
             currentFilter.selectedSuitability.insert(suitability)
         } else {
@@ -37,10 +40,12 @@ class FilterViewModel: ObservableObject {
     }
 
     func setDifficulty(_ difficulty: RouteDifficulty) {
-        currentFilter.selectedDifficulty = difficulty
+        objectWillChange.send()
+        currentFilter.selectedDifficulty = currentFilter.selectedDifficulty == difficulty ? nil : difficulty
     }
 
     func setDistance(_ distance: DistanceRange) {
-        currentFilter.selectedDistance = distance
+        objectWillChange.send()
+        currentFilter.selectedDistance = currentFilter.selectedDistance == distance ? nil : distance
     }
 }

@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 struct InputView: View {
-    @StateObject var locationSearch = LocationSearch()
+    @ObservedObject var locationSearch: LocationSearch
     @FocusState private var isTextFieldFocused: Bool
 
     private var displayText: Binding<String> {

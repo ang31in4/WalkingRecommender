@@ -43,6 +43,11 @@ class LocationSearch: NSObject, ObservableObject, CLLocationManagerDelegate {
         let coordinatesData = activeLocation
         return [coordinatesData.longitude, coordinatesData.latitude]
     }
+
+    /// Params for route API: latitude, longitude, minDistanceM, maxDistanceM
+    func routeParams(minDistanceM: Double, maxDistanceM: Double) -> (latitude: Double, longitude: Double, minDistanceM: Double, maxDistanceM: Double) {
+        (activeLocation.latitude, activeLocation.longitude, minDistanceM, maxDistanceM)
+    }
     
     func performSearch() {
         isSearch = true
