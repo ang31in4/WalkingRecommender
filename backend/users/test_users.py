@@ -43,13 +43,48 @@ ACCESS_WALKER = UserProfile(
     safety_weight=1.8,
 )
 
+FITNESS_WALKER = UserProfile(
+    user_id="fitness_template",
+
+    requires_wheelchair=False,
+    avoid_steps=False,
+
+    min_length_m=1500.0,
+    max_length_m=None,
+    max_difficulty=None,
+
+    bringing_dog=False,
+
+    accessibility_weight=0.2,
+    urban_weight=0.5,
+    difficulty_weight=1.5,
+    safety_weight=0.6
+)
+
+DOG_WALKER = UserProfile(
+    user_id="dog_owner_template",
+
+    requires_wheelchair=False,
+    avoid_steps=True,
+
+    min_length_m=500.0,
+    max_length_m=3000.0,
+    max_difficulty=0.6,
+
+    bringing_dog=True,
+
+    accessibility_weight=0.9,
+    urban_weight=0.7,
+    difficulty_weight=0.6,
+    safety_weight=1.4
+)
+
 def initialize_test_users():
     make_table()
     insert_user_profile(CASUAL_WALKER)
     insert_user_profile(ACCESS_WALKER)
+    insert_user_profile(FITNESS_WALKER)
+    insert_user_profile(DOG_WALKER)
 
 if __name__ == "__main__":
     initialize_test_users()
-    
-    test_user_1 = load_user_profile(CASUAL_WALKER.user_id)
-    print(f"{test_user_1.user_id} requires wheelchair: {test_user_1.requires_wheelchair}")
