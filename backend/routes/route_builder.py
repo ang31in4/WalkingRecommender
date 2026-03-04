@@ -390,15 +390,48 @@ def build_routes(
         return routes[:max_routes]
     return routes
 
+def _preferred_street_name(edge_ids: Sequence[int], edges: Dict[int, Edge], reverse: bool = False) -> Optional[str]:
+    ordered_edge_ids = reversed(edge_ids) if reverse else edge_ids
+    for edge_id in ordered_edge_ids:
+        edge = edges.get(edge_id)
+        if edge is None:
+            continue
+        street_name = edge.tags.get("name") if isinstance(edge.tags, dict) else None
+        if street_name:
+            return street_name
+    return None
+
+
+def _route_name(
+    route: Route,
+    index: int,
+    edges: Dict[int, Edge],
+) -> str:
+    distance_miles = route.distance_m / MILES_TO_METERS
+    start_street = _preferred_street_name(route.edge_ids, edges)
+    end_street = _preferred_street_name(route.edge_ids, edges, reverse=True)
+
+    if start_street and end_street:
+        if start_street == end_street:
+            return f"{start_street} Loop ({distance_miles:.2f} mi)"
+        return f"{start_street} to {end_street} ({distance_miles:.2f} mi)"
+
+    if start_street:
+        return f"{start_street} Route ({distance_miles:.2f} mi)"
+
+    return f"Route {index} ({distance_miles:.2f} mi)"
+
 def routes_to_geojson(routes: Sequence[Route],
                       nodes: Dict[int, Node],
                       route_scores: Optional[Dict[Tuple[int, ...], float]] = None,) -> dict:
     features = []
-    for route in routes:
+    edges = load_edges()
+    for index, route in enumerate(routes, start=1):
         coordinates = [
             [nodes[node_id].lon, nodes[node_id].lat] for node_id in route.node_ids
         ]
         properties = {
+            "name": _route_name(route, index, edges),
             "distance_m": route.distance_m,
             "edge_ids": list(route.edge_ids),
             "node_ids": list(route.node_ids),
