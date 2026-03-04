@@ -36,16 +36,6 @@ def _parse_bool(value, default):
     return bool(value)
 
 
-def _parse_score_tag(value):
-    if value is None:
-        return None
-    if isinstance(value, list):
-        return value
-    if isinstance(value, str):
-        return [tag.strip() for tag in value.split(",") if tag.strip()]
-    return None
-
-
 def _get_route_params():
     """Extract build_routes params from GET query or POST JSON."""
     if request.method == "POST":
@@ -56,8 +46,10 @@ def _get_route_params():
     params = dict(PRESET_PARAMS)
     params["latitude"] = _parse_float(data.get("latitude"), params["latitude"])
     params["longitude"] = _parse_float(data.get("longitude"), params["longitude"])
-    params["min_distance_m"] = _parse_float(data.get("min_distance_m"), params["min_distance_m"])
-    params["max_distance_m"] = _parse_float(data.get("max_distance_m"), params["max_distance_m"])
+    user_id = data.get("user_id")
+    if user_id is not None:
+        cleaned_user_id = str(user_id).strip()
+        params["user_id"] = cleaned_user_id or None
     params["max_routes"] = _parse_int(data.get("max_routes"), params["max_routes"])
     params["max_start_distance_m"] = _parse_float(
         data.get("max_start_distance_m"), params["max_start_distance_m"]
@@ -74,10 +66,6 @@ def _get_route_params():
         data.get("edge_reuse_penalty"), params["edge_reuse_penalty"]
     )
     params["allow_edge_reuse"] = _parse_bool(data.get("allow_edge_reuse"), params["allow_edge_reuse"])
-
-    score_tag = _parse_score_tag(data.get("score_tag"))
-    if score_tag is not None:
-        params["score_tag"] = score_tag
 
     return params
 

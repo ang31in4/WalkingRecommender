@@ -13,6 +13,7 @@ from backend.data_ingestion.graph.edge import Edge
 from backend.data_ingestion.graph.node import Node
 from backend.data_ingestion.graph.persist_data import load_edges, load_nodes
 from backend.users.user_profile import UserProfile
+from backend.users.manage_user_profiles import load_user_profile
 
 MILES_TO_METERS = 1609.344
 INVERTED_INDEX_PATH = (
@@ -266,8 +267,8 @@ def _build_route_from_start(
 def build_routes(
     latitude: float,
     longitude: float,
-    min_distance_m: float,
-    max_distance_m: float,
+    min_distance_m: Optional[float] = None,
+    max_distance_m: Optional[float] = None,
     max_routes: int = 100,
     max_start_distance_m: float = MILES_TO_METERS,
     max_attempts: int = 1000,
@@ -287,6 +288,14 @@ def build_routes(
     (or ``max_attempts``) is reached. In that mode, ``max_routes`` controls only
     how many routes are returned.
     """
+    if user_id:
+        user_profile = load_user_profile(user_id)
+        min_distance_m = user_profile.min_length_m
+        max_distance_m = user_profile.max_length_m
+    if min_distance_m is None:
+        min_distance_m = 1000.0
+    if max_distance_m is None:
+        max_distance_m = 2000.0
     if min_distance_m <= 0:
         raise ValueError("min_distance_m must be positive")
     if max_distance_m <= 0:
@@ -310,9 +319,10 @@ def build_routes(
         return []
 
     matching_edge_ids: Optional[Set[int]] = None
-    normalized_score_tags = _normalize_tags(score_tag)
-    if not normalized_score_tags and user_id:
+    if user_id:
         normalized_score_tags = _score_tags_from_user_id(user_id)
+    else:
+        normalized_score_tags = _normalize_tags(score_tag)
     if normalized_score_tags:
         matching_edge_ids = _load_matching_edge_ids(normalized_score_tags)
 
@@ -476,26 +486,21 @@ def print_routes(routes: List[Route], nodes: Dict[int, Node], limit: int = 10) -
         print()
 
 PRESET_PARAMS = dict(
-    # Test location is currently UCI campus (can adjust later)
+    # USER INFO
+    user_id="fitness_template", # Get tags and distance restrictions from user_id
+
+    # USER LOCATION (currently UCI campus)
     latitude=33.646117,
     longitude=-117.843058,
 
-    # Minimum distance of route and hard maximum distance
-    min_distance_m=1000.0,
-    max_distance_m=2000.0,
-
-    # How far starting point can be from user location
-    max_start_distance_m=250.0,
-
-    # Route generation parameters 
+    # Route generation parameters
+    max_start_distance_m=250.0, # How far starting point can be from user location
     max_routes=1000000, # Number of routes to return (after scoring and/or time budget)
     max_attempts=1000000, # Upper bound on generation attempts (loop iterations trying random starts/routes)
     max_steps=20000, # Max edges/hops per single route construction attempt before giving up.
     time_budget_s=5.0,
 
     # Tag-based scoring parameters
-    user_id="fitness_template", # Preferred: choose a user id to derive score tags from saved user profile preferences.
-    score_tag=None, # Optional override for explicit scoring tags.
     tag_bias=1.0, # Weight bonus when selecting candidate edges that match score_tag.
     distance_bias=1.0, # Weight bonus for edges whose length is closer to the remaining target distance.
     route_similarity_threshold=0.5, # How similar routes can be before being considered a duplicate (0.0 = no similarity allowed, 1.0 = identical routes only
@@ -505,7 +510,8 @@ PRESET_PARAMS = dict(
 
 if __name__ == "__main__":
     routes = build_routes(**PRESET_PARAMS)
-    selected_tag = PRESET_PARAMS.get("score_tag")
+    if PRESET_PARAMS.get("user_id"):
+        selected_tag = _score_tags_from_user_id(PRESET_PARAMS["user_id"])
     scored_routes = (
         score_routes_for_tag(routes, tag=selected_tag)
         if selected_tag
