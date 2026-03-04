@@ -12,6 +12,7 @@ from backend.data_ingestion.graph.adjacency import Adjacency
 from backend.data_ingestion.graph.edge import Edge
 from backend.data_ingestion.graph.node import Node
 from backend.data_ingestion.graph.persist_data import load_edges, load_nodes
+from backend.users.user_profile import UserProfile
 
 MILES_TO_METERS = 1609.344
 INVERTED_INDEX_PATH = (
@@ -76,6 +77,41 @@ def _load_matching_edge_ids(
     for tag in normalized_tags:
         matching_edge_ids.update(_load_tag_edge_ids(tag, db_path=db_path))
     return matching_edge_ids
+
+def _score_tags_for_user_profile(user_profile: UserProfile) -> List[str]:
+    tags: List[str] = []
+
+    if user_profile.requires_wheelchair or user_profile.avoid_steps:
+        tags.extend(["accessible", "paved", "sidewalk"])
+
+    if user_profile.bringing_dog:
+        tags.extend(["dog_friendly", "trail", "residential"])
+
+    if user_profile.accessibility_weight >= 0.3:
+        tags.extend(["paved", "sidewalk"])
+
+    if user_profile.urban_weight >= 0.3:
+        tags.extend(["sidewalk", "residential", "lit"])
+
+    if user_profile.safety_weight >= 0.3:
+        tags.extend(["lit", "residential"])
+
+    if user_profile.difficulty_weight >= 1.0 and user_profile.max_difficulty is None:
+        tags.extend(["trail", "incline", "rough_surface"])
+    elif user_profile.difficulty_weight >= 0.3:
+        tags.extend(["paved", "sidewalk"])
+
+    if not tags:
+        return ["paved", "sidewalk", "residential"]
+
+    return list(dict.fromkeys(tags))
+
+
+def _score_tags_from_user_id(user_id: str) -> List[str]:
+    from backend.users.manage_user_profiles import load_user_profile
+
+    user_profile = load_user_profile(user_id)
+    return _score_tags_for_user_profile(user_profile)
 
 def score_route_for_tag(route: Route, edges: Dict[int, Edge], matching_edge_ids: Set[int]) -> float:
     if route.distance_m <= 0:
@@ -237,6 +273,7 @@ def build_routes(
     max_attempts: int = 1000,
     max_steps: int = 200,
     time_budget_s: Optional[float] = None,
+    user_id: Optional[str] = None,
     score_tag: Optional[Union[str, Sequence[str]]] = None,
     tag_bias: float = 3.0,
     distance_bias: float = 1.0,
@@ -274,6 +311,8 @@ def build_routes(
 
     matching_edge_ids: Optional[Set[int]] = None
     normalized_score_tags = _normalize_tags(score_tag)
+    if not normalized_score_tags and user_id:
+        normalized_score_tags = _score_tags_from_user_id(user_id)
     if normalized_score_tags:
         matching_edge_ids = _load_matching_edge_ids(normalized_score_tags)
 
@@ -419,10 +458,11 @@ PRESET_PARAMS = dict(
     max_routes=1000000, # Number of routes to return (after scoring and/or time budget)
     max_attempts=1000000, # Upper bound on generation attempts (loop iterations trying random starts/routes)
     max_steps=20000, # Max edges/hops per single route construction attempt before giving up.
-    time_budget_s=20.0,
+    time_budget_s=5.0,
 
     # Tag-based scoring parameters
-    score_tag=["paved, sidewalk, residential"], # Enables tag-aware behavior: routes are biased/scored using edges with these tags from the inverted index DB.
+    user_id="fitness_template", # Preferred: choose a user id to derive score tags from saved user profile preferences.
+    score_tag=None, # Optional override for explicit scoring tags.
     tag_bias=1.0, # Weight bonus when selecting candidate edges that match score_tag.
     distance_bias=1.0, # Weight bonus for edges whose length is closer to the remaining target distance.
     route_similarity_threshold=0.5, # How similar routes can be before being considered a duplicate (0.0 = no similarity allowed, 1.0 = identical routes only
