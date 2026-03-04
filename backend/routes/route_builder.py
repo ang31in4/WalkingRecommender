@@ -140,6 +140,24 @@ def score_routes_for_tag(
     ]
     return sorted(scored_routes, key=lambda x: x[1], reverse=True)
 
+def score_routes_for_user_profile(
+    routes: Sequence[Route],
+    user_profile: UserProfile,
+    edges: Optional[Dict[int, Edge]] = None,
+) -> List[Tuple[Route, float]]:
+    if edges is None:
+        edges = load_edges()
+
+    from backend.routes.feature_extraction import compute_route_features
+
+    scored_routes: List[Tuple[Route, float]] = []
+    for route in routes:
+        features = compute_route_features(route, edges)
+        if not user_profile.allowed(features):
+            continue
+        scored_routes.append((route, user_profile.score(features)))
+
+    return sorted(scored_routes, key=lambda x: x[1], reverse=True)
 
 def _candidate_start_nodes(
     nodes: Dict[int, Node],
@@ -288,6 +306,7 @@ def build_routes(
     (or ``max_attempts``) is reached. In that mode, ``max_routes`` controls only
     how many routes are returned.
     """
+    user_profile: Optional[UserProfile] = None
     if user_id:
         user_profile = load_user_profile(user_id)
         min_distance_m = user_profile.min_length_m
@@ -331,6 +350,9 @@ def build_routes(
     scored_route_keys: Set[Tuple[int, ...]] = set()
     scored_route_edge_sets: Dict[Tuple[int, ...], Set[int]] = {}
     heap_counter = 0
+    candidate_route_limit = max_routes
+    if user_profile is not None and max_routes > 0:
+        candidate_route_limit = min(max(max_routes * 10, 100), 5000)
     attempts = 0
     start_time = time.monotonic()
     while attempts < max_attempts:
@@ -355,7 +377,9 @@ def build_routes(
             allow_edge_reuse=allow_edge_reuse,
         )
         if route is not None:
-            if normalized_score_tags and matching_edge_ids is not None:
+            if user_profile is not None:
+                routes.append(route)
+            elif normalized_score_tags and matching_edge_ids is not None:
                 route_key = tuple(route.edge_ids)
                 if route_key in scored_route_keys:
                     continue
@@ -369,8 +393,8 @@ def build_routes(
                     continue
 
                 score = score_route_for_tag(route, edges, matching_edge_ids)
-                if max_routes > 0:
-                    if len(scored_routes_heap) < max_routes:
+                if candidate_route_limit > 0:
+                    if len(scored_routes_heap) < candidate_route_limit:
                         heapq.heappush(scored_routes_heap, (score, heap_counter, route_key, route))
                         scored_route_keys.add(route_key)
                         scored_route_edge_sets[route_key] = route_edge_set
@@ -387,8 +411,10 @@ def build_routes(
             else:
                 routes.append(route)
 
-    if normalized_score_tags and matching_edge_ids is not None:
-        return [
+    if user_profile is not None:
+        candidate_routes = routes
+    elif normalized_score_tags and matching_edge_ids is not None:
+        candidate_routes = [
             route
             for _, _, _, route in sorted(
                 scored_routes_heap,
@@ -396,9 +422,21 @@ def build_routes(
                 reverse=True,
             )
         ]
-    if time_budget_s is not None:
-        return routes[:max_routes]
-    return routes
+    elif time_budget_s is not None:
+        candidate_routes = routes[:max_routes]
+    else:
+        candidate_routes = routes
+
+    if user_profile is not None:
+        profile_scored_routes = score_routes_for_user_profile(
+            candidate_routes,
+            user_profile=user_profile,
+            edges=edges,
+        )
+        return [route for route, _ in profile_scored_routes[:max_routes]]
+
+    return candidate_routes
+
 
 def _preferred_street_name(edge_ids: Sequence[int], edges: Dict[int, Edge], reverse: bool = False) -> Optional[str]:
     ordered_edge_ids = reversed(edge_ids) if reverse else edge_ids
