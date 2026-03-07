@@ -55,17 +55,34 @@ func loadGeoJson() -> [Route] {
     return []
 }
 
-func loadGeoJsonFromAPI(latitude: Double, longitude: Double, minDistanceM: Double, maxDistanceM: Double) async -> [Route] {
-    var components = URLComponents(string: "http://localhost:5050/api/routes")!
-    components.queryItems = [
-        URLQueryItem(name: "latitude", value: String(latitude)),
-        URLQueryItem(name: "longitude", value: String(longitude)),
-        URLQueryItem(name: "min_distance_m", value: String(minDistanceM)),
-        URLQueryItem(name: "max_distance_m", value: String(maxDistanceM)),
-    ]
-    guard let url = components.url else { return [] }
+func loadGeoJsonFromAPI(
+    latitude: Double,
+    longitude: Double,
+    minDistanceM: Double,
+    maxDistanceM: Double,
+    userId: String? = nil
+) async -> [Route] {
+    guard let url = URL(string: "\(APIConfig.baseURL)/api/routes") else { return [] }
     var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.timeoutInterval = 60
+
+    var body: [String: Any] = [
+        "latitude": latitude,
+        "longitude": longitude,
+        "min_distance_m": minDistanceM,
+        "max_distance_m": maxDistanceM,
+        "max_start_distance_m": 2000.0,
+    ]
+    if let uid = userId, !uid.isEmpty {
+        body["user_id"] = uid
+    }
+    guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+        print("API load failed: could not encode request body")
+        return []
+    }
+    request.httpBody = bodyData
 
     do {
         let (data, response) = try await URLSession.shared.data(for: request)

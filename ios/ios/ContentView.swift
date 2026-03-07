@@ -26,14 +26,14 @@ struct HomeView: View {
 
     var body: some View {
         VStack {
-            WeatherView()
+            WeatherView(locationSearch: locationSearch)
             HStack(alignment: .center) {
                 InputView(locationSearch: locationSearch)
                 FilterButtonView(filterViewModel: filterViewModel)
                 .font(.caption)
             }
             .padding(20)
-            RouteCard_AllCategories(filterViewModel: filterViewModel, locationSearch: locationSearch)
+            RouteCard_AllCategories(filterViewModel: filterViewModel, locationSearch: locationSearch, userId: loginViewModel.userId)
                 .padding(30)
             Button("Logout") {
                 loginViewModel.logout()

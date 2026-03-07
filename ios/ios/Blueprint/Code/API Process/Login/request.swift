@@ -11,7 +11,7 @@ struct LoginResponse: Decodable {
 }
 
 func loginRequest(userId: String) async throws -> Bool {
-    guard let url = URL(string: "http://localhost:5050/api/login") else {
+    guard let url = URL(string: "\(APIConfig.baseURL)/api/login") else {
         throw NSError(domain: "Login", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
     }
 

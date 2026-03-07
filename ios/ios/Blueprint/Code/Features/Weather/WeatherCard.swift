@@ -7,15 +7,18 @@
 
 import Foundation
 import SwiftUI
+internal import _LocationEssentials
 
 struct WeatherInfoView: View {
-    @StateObject var weatherViewModel = WeatherViewModel()
-    
+    @ObservedObject var locationSearch: LocationSearch
+    @StateObject private var weatherViewModel = WeatherViewModel()
+
     var body: some View {
-        VStack (alignment: .leading, spacing: 4) {
-            if let current_weather = weatherViewModel.weather{
-                Text("Current weather in Irvine").font(.system(size: 13, weight: .medium))
-                Text("Temperature: \(current_weather.current.temp)").font(.system(size: 13, weight: .medium))
+        VStack(alignment: .leading, spacing: 4) {
+            if let current_weather = weatherViewModel.weather {
+                Text("Current weather in \(locationSearch.locationDisplayName)")
+                    .font(.system(size: 13, weight: .medium))
+                Text("Temperature: \(Int(round(current_weather.current.temp)))°F").font(.system(size: 13, weight: .medium))
                 Text("Humidity: \(current_weather.current.humidity)").font(.system(size: 13, weight: .medium))
                 Text("UV index: \(current_weather.current.uvi)").font(.system(size: 13, weight: .medium))
             }
@@ -24,23 +27,32 @@ struct WeatherInfoView: View {
         .foregroundColor(.white)
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
-        .onAppear() {
-            weatherViewModel.fetchWeather()
+        .onAppear {
+            let loc = locationSearch.activeLocation
+            weatherViewModel.updateLocation(lat: loc.latitude, lon: loc.longitude)
+        }
+        .onChange(of: locationSearch.activeLocationId) { _, _ in
+            let loc = locationSearch.activeLocation
+            weatherViewModel.updateLocation(lat: loc.latitude, lon: loc.longitude)
+        }
+        .onDisappear {
+            weatherViewModel.stopRefresh()
         }
     }
 }
 
 struct WeatherView: View {
+    @ObservedObject var locationSearch: LocationSearch
+
     var body: some View {
-        GeometryReader {
-            geo in let cardWidth = geo.size.width
+        GeometryReader { geo in
+            let cardWidth = geo.size.width
             let cardHeight = cardWidth / 2.25
-            ZStack (alignment: .topLeading){
+            ZStack(alignment: .topLeading) {
                 ImageView()
-                GradientOverlay(width:cardWidth, height: cardHeight)
-                WeatherInfoView().padding(20)
+                GradientOverlay(width: cardWidth, height: cardHeight)
+                WeatherInfoView(locationSearch: locationSearch).padding(20)
             }
-//            .frame(width: cardWidth, height:cardHeight)
         }
     }
 }

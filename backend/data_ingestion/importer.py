@@ -50,6 +50,31 @@ class DataIngestion:
         except Exception as e:
             print(e)
             return {}
+
+    def fetch_oc_county_walkways(self) -> Dict:
+        """
+        Fetch walkways in all of Orange County, California.
+        Uses bounding box (faster than area query, avoids Overpass timeout).
+        OC bbox approx: south=33.39, west=-118.13, north=33.87, east=-117.51
+        """
+        # bbox: south, west, north, east
+        south, west, north, east = 33.39, -118.13, 33.87, -117.51
+        query = f"""
+                [out:json][timeout:900];
+                (
+                way({south},{west},{north},{east})["highway"~"footway|path|pedestrian|steps|track|residential|sidewalk"];
+                way({south},{west},{north},{east})["foot"~"yes|designated"];
+                way({south},{west},{north},{east})["access"!~"no|private"];
+                );
+                out body geom;
+                """
+        try:
+            response = requests.post(self.overpass_url, data={"data": query}, timeout=900)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(e)
+            return {}
         
     def filter_for_walkability(self, routes):
         filtered = []

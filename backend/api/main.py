@@ -50,6 +50,12 @@ def _get_route_params():
     if user_id is not None:
         cleaned_user_id = str(user_id).strip()
         params["user_id"] = cleaned_user_id or None
+    min_d = data.get("min_distance_m")
+    max_d = data.get("max_distance_m")
+    if min_d is not None:
+        params["min_distance_m"] = _parse_float(min_d, None)
+    if max_d is not None:
+        params["max_distance_m"] = _parse_float(max_d, None)
     params["max_routes"] = _parse_int(data.get("max_routes"), params["max_routes"])
     params["max_start_distance_m"] = _parse_float(
         data.get("max_start_distance_m"), params["max_start_distance_m"]

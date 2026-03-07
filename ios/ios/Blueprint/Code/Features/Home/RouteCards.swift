@@ -14,7 +14,7 @@ struct RouteCard: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
-        .frame(width: UIScreen.main.bounds.width * 2/5, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .frame(height: 100)
         .background(Color.blue.opacity(0.3))
@@ -23,69 +23,94 @@ struct RouteCard: View {
     }
 }
 
-struct RouteCard_SameCategory: View {
-    let title: String
-    let routes: [Route]
-
-    var body: some View {
-        VStack(alignment: .leading) {
-            Text(title)
-                .font(.title2)
-                .fontWeight(.semibold)
-            ScrollView(.horizontal) {
-                HStack {
-                    ForEach(routes.prefix(3)) { route in
-                        RouteCard(route: route)
-                    }
-                }
-            }
-        }
-    }
-}
-
 struct RouteCard_AllCategories: View {
     @ObservedObject var filterViewModel: FilterViewModel
     @ObservedObject var locationSearch: LocationSearch
+    var userId: String?
+    @State private var originalRoutes: [Route] = []
     @State private var allRoutes: [Route] = []
     @State private var isLoading = true
+    @State private var isLoadingSupplement = false
 
     private var filteredRoutes: [Route] {
         filterRoutes(allRoutes, by: filterViewModel.currentFilter)
     }
 
-    private let categoryTitles = ["Suggested for you", "Top paths nearby", "A traffic-free zone"]
+    private var filterChangeId: String {
+        let f = filterViewModel.currentFilter
+        return "\(f.selectedDistance?.rawValue ?? "nil")-\(f.selectedDifficulty?.rawValue ?? "nil")-\(f.selectedSuitability.count)"
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 16) {
             if isLoading {
                 ProgressView("Loading routes…")
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
+            } else if isLoadingSupplement {
+                ProgressView("Fetching more routes…")
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
             } else if filteredRoutes.isEmpty {
-                Text("No routes match your filters")
+                Text(allRoutes.isEmpty ? "No routes available for this location. Try UCI area or adjust filters." : "No routes match your filters")
                     .foregroundColor(.secondary)
             } else {
-                ForEach(Array(categoryTitles.enumerated()), id: \.offset) { index, title in
-                    let start = index * 3
-                    let categoryRoutes = Array(filteredRoutes.dropFirst(start).prefix(3))
-                    if !categoryRoutes.isEmpty {
-                        RouteCard_SameCategory(title: title, routes: categoryRoutes)
+                Text("Suggested for you")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                        ForEach(filteredRoutes.prefix(10)) { route in
+                            RouteCard(route: route)
+                        }
                     }
                 }
             }
         }
-        .task(id: "\(locationSearch.activeLocation.latitude)-\(locationSearch.activeLocation.longitude)-\(filterViewModel.currentFilter.selectedDistance?.rawValue ?? "nil")-\(filterViewModel.currentFilter.selectedDifficulty?.rawValue ?? "nil")") {
-            let (minM, maxM) = DistanceRange.minMaxMeters(for: filterViewModel.currentFilter.selectedDistance)
+        .task(id: "\(locationSearch.activeLocation.latitude)-\(locationSearch.activeLocation.longitude)") {
+            let (minM, maxM) = (100.0, 5000.0)
             let (lat, lon, minDM, maxDM) = locationSearch.routeParams(minDistanceM: minM, maxDistanceM: maxM)
             let fromAPI = await loadGeoJsonFromAPI(
                 latitude: lat,
                 longitude: lon,
                 minDistanceM: minDM,
-                maxDistanceM: maxDM
+                maxDistanceM: maxDM,
+                userId: userId
             )
-            allRoutes = fromAPI.isEmpty ? loadGeoJson() : fromAPI
+            let routes = fromAPI
+            originalRoutes = routes
+            allRoutes = routes
             isLoading = false
         }
+        .onChange(of: filterChangeId) { _, _ in checkAndFetchSupplement() }
+    }
+
+    private func checkAndFetchSupplement() {
+        guard !filterViewModel.currentFilter.isDefault else {
+            allRoutes = originalRoutes
+            return
+        }
+        let filtered = filterRoutes(allRoutes, by: filterViewModel.currentFilter)
+        guard filtered.count < 10 else { return }
+
+        Task {
+            await fetchWithFilterParams()
+        }
+    }
+
+    private func fetchWithFilterParams() async {
+        isLoadingSupplement = true
+        let (minM, maxM) = DistanceRange.minMaxMeters(for: filterViewModel.currentFilter.selectedDistance)
+        let (lat, lon, minDM, maxDM) = locationSearch.routeParams(minDistanceM: minM, maxDistanceM: maxM)
+        let fromAPI = await loadGeoJsonFromAPI(
+            latitude: lat,
+            longitude: lon,
+            minDistanceM: minDM,
+            maxDistanceM: maxDM,
+            userId: userId
+        )
+        allRoutes = fromAPI
+        isLoadingSupplement = false
     }
 }
 

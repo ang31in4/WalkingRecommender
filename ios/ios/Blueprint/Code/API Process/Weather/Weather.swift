@@ -1,8 +1,13 @@
 import Foundation
 import Combine
+import CoreLocation
 
-//let WEATHER_API = "https://api.openweathermap.org/data/2.5/weather?q=Irvine,CA,US&appid=284009ac85bf1af360cd32ac0fbf9d40&units=metric"
-private let WEATHER_API = "https://api.openweathermap.org/data/3.0/onecall?lat=33.6846&lon=-11.8265&units=metric&appid=284009ac85bf1af360cd32ac0fbf9d40"
+private let WEATHER_API_BASE = "https://api.openweathermap.org/data/3.0/onecall"
+private let WEATHER_API_KEY = "284009ac85bf1af360cd32ac0fbf9d40"
+
+func weatherURL(lat: Double, lon: Double) -> String {
+    "\(WEATHER_API_BASE)?lat=\(lat)&lon=\(lon)&units=imperial&appid=\(WEATHER_API_KEY)"
+}
 
 func getWeatherInNHours(hourly: [Hourly], number_of_hours: Int) -> [Hourly] {
     var hour_in_range: [Hourly] = []
@@ -13,9 +18,12 @@ func getWeatherInNHours(hourly: [Hourly], number_of_hours: Int) -> [Hourly] {
 }
 
 class WeatherService {
-    let api_url = URL(string: WEATHER_API)!
-    func getWeather(url: String) -> AnyPublisher<WeatherResponse, Error> {
-        return URLSession.shared.dataTaskPublisher(for: api_url)
+    func getWeather(lat: Double, lon: Double) -> AnyPublisher<WeatherResponse, Error> {
+        let urlString = weatherURL(lat: lat, lon: lon)
+        guard let url = URL(string: urlString) else {
+            return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
+        }
+        return URLSession.shared.dataTaskPublisher(for: url)
             .map(\.data)
             .decode(type: WeatherResponse.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
@@ -23,13 +31,35 @@ class WeatherService {
 }
 
 class WeatherViewModel: ObservableObject {
-    private let weather_service = WeatherService()
+    private let weatherService = WeatherService()
     private var cancellable: AnyCancellable?
+    private var refreshTimer: Timer?
     @Published var weather: WeatherResponse?
-    
-    func fetchWeather() {
-        cancellable = weather_service.getWeather(url: WEATHER_API)
+
+    func fetchWeather(lat: Double, lon: Double) {
+        cancellable?.cancel()
+        cancellable = weatherService.getWeather(lat: lat, lon: lon)
             .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { _ in }, receiveValue: { weather in self.weather = weather })
+            .sink(receiveCompletion: { _ in }, receiveValue: { [weak self] weather in
+                self?.weather = weather
+            })
+    }
+
+    func startHourlyRefresh(lat: Double, lon: Double) {
+        refreshTimer?.invalidate()
+        fetchWeather(lat: lat, lon: lon)
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+            self?.fetchWeather(lat: lat, lon: lon)
+        }
+        RunLoop.main.add(refreshTimer!, forMode: .common)
+    }
+
+    func updateLocation(lat: Double, lon: Double) {
+        startHourlyRefresh(lat: lat, lon: lon)
+    }
+
+    func stopRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 }
