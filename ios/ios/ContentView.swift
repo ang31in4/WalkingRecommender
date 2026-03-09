@@ -56,7 +56,8 @@ struct HomeView: View {
                     }
                     ToolbarItem(placement: .primaryAction) {
                         Button("Select") {
-                            guard let uid = loginViewModel.userId else { return }
+                            let uid = loginViewModel.userId
+                            guard !uid.isEmpty else { return }
                             Task {
                                 _ = try? await postRouteSelected(userId: uid, route: route)
                                 await MainActor.run { selectedRoute = nil }

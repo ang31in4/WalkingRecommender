@@ -16,5 +16,6 @@ DerivedData/
 *.xcodeproj/project.xcworkspace
 *.xcuserdata/
 
-*.db*.db
 *.db
+*.sqlite
+*.sqlite3
