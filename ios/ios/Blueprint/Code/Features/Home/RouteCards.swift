@@ -27,6 +27,7 @@ struct RouteCard_AllCategories: View {
     @ObservedObject var filterViewModel: FilterViewModel
     @ObservedObject var locationSearch: LocationSearch
     var userId: String?
+    var onRouteSelected: ((Route) -> Void)?
     @State private var originalRoutes: [Route] = []
     @State private var allRoutes: [Route] = []
     @State private var isLoading = true
@@ -62,6 +63,7 @@ struct RouteCard_AllCategories: View {
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                         ForEach(filteredRoutes.prefix(10)) { route in
                             RouteCard(route: route)
+                                .onTapGesture { onRouteSelected?(route) }
                         }
                     }
                 }

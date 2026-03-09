@@ -48,14 +48,21 @@ def make_filters_table(conn):
                 wheelchair_access INTEGER,
                 avoid_steps INTEGER,
                 pet_friendly INTEGER,
+                urban INTEGER,
                 FOREIGN KEY (interaction_id) REFERENCES session_interaction(interaction_id)
                 );""")
+    # Add urban column for DBs created before this change
+    try:
+        cur.execute("ALTER TABLE session_filters ADD COLUMN urban INTEGER DEFAULT 0")
+    except sqlite3.OperationalError as e:
+        if "duplicate column" not in str(e).lower():
+            raise
 
 def make_route_selected_table(conn):
     cur = conn.cursor()
 
     cur.execute("""
-                CREATE TABLE session_route_selected (
+                CREATE TABLE IF NOT EXISTS session_route_selected (
                 interaction_id INTEGER PRIMARY KEY,
                 accessibility_score REAL,
                 urban_score REAL,
@@ -69,7 +76,7 @@ def insert_session(conn, session:SearchSession):
     cur = conn.cursor()
 
     cur.execute("""
-                INSERT INTO sessions (user_id, timestamp)
+                INSERT INTO search_sessions (user_id, timestamp)
                 VALUES (?, ?)
                 """, 
                 (session.user_id, session.timestamp)
@@ -110,38 +117,56 @@ def insert_filters(conn, interaction_id, filters:SearchFilters):
                     distance,
                     wheelchair_access,
                     avoid_steps,
-                    pet_friendly
+                    pet_friendly,
+                    urban
                 )
-                VALUES (?, ?, ? ,? , ?, ?);
-                """, 
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+                """,
                 (
                     interaction_id,
                     filters.difficulty,
                     filters.distance,
                     int(filters.wheelchair_access),
                     int(filters.avoid_steps),
-                    int(filters.pet_friendly)
+                    int(filters.pet_friendly),
+                    int(filters.urban),
                 )
             )
 
-def insert_selected_route(conn, interaction_id, route:RouteFeatures):
+def insert_selected_route(conn, interaction_id: int, route: RouteFeatures | None = None) -> None:
+    """Insert one row into session_route_selected. If route is None, scores are 0."""
     cur = conn.cursor()
-
-    cur.execute("""
-                INSERT INTO session_route_selected (
-                    interaction_id,
-                    accessibility_score,
-                    urban_score,
-                    difficulty_score,
-                    safety_score
-                )
-                VALUES (?, ?, ? ,? , ?);
-                """, 
-                (
-                    interaction_id,
-                    route.accessibility_score,
-                    route.urban_score,
-                    route.difficulty_score,
-                    route.safety_score
-                )
+    if route is None:
+        cur.execute(
+            """
+            INSERT INTO session_route_selected (
+                interaction_id,
+                accessibility_score,
+                urban_score,
+                difficulty_score,
+                safety_score
             )
+            VALUES (?, 0, 0, 0, 0);
+            """,
+            (interaction_id,),
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO session_route_selected (
+                interaction_id,
+                accessibility_score,
+                urban_score,
+                difficulty_score,
+                safety_score
+            )
+            VALUES (?, ?, ?, ?, ?);
+            """,
+            (
+                interaction_id,
+                route.accessibility_score,
+                route.urban_score,
+                route.difficulty_score,
+                route.safety_score,
+            ),
+        )

@@ -56,13 +56,13 @@ enum DistanceRange: String, CaseIterable {
 enum Suitability: String, CaseIterable {
     case petFriendly = "pet_friendly"
     case wheelchairAccessible = "wheelchair_accessible"
-    case strollerFriendly = "stroller_friendly"
+    case urban = "urban"
 
     var displayName: String {
         switch self {
         case .petFriendly: return "Pet Friendly"
         case .wheelchairAccessible: return "Wheelchair-friendly"
-        case .strollerFriendly: return "Stroller-friendly"
+        case .urban: return "Urban"
         }
     }
 }

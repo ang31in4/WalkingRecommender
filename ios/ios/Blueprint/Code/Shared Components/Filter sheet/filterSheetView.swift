@@ -39,6 +39,7 @@ private struct FilterCheckboxRow: View {
 
 struct FilterSheetView: View {
     @ObservedObject var filterViewModel: FilterViewModel
+    var userId: String?
 
     private let limeGreen = Color(red: 0.56, green: 0.93, blue: 0.56)
 
@@ -107,7 +108,11 @@ struct FilterSheetView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
 
                 Button("Show") {
+                    let filter = filterViewModel.currentFilter
                     filterViewModel.applyFilter()
+                    if let uid = userId {
+                        Task { _ = try? await postFilters(userId: uid, filter: filter) }
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)

@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import MapKit
 
 struct Route: Identifiable, Decodable {
     let id: String
@@ -54,5 +55,11 @@ extension Route {
         guard let firstCoordinate = coordinates.first else { return nil }
         let startLocation = CLLocation(latitude: firstCoordinate.latitude, longitude: firstCoordinate.longitude)
         return userLocation.distance(from: startLocation)
+    }
+}
+
+extension Route {
+    func asPolyline() -> MKPolyline {
+        MKPolyline(coordinates: coordinates, count: coordinates.count)
     }
 }
