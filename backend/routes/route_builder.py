@@ -14,6 +14,7 @@ from backend.data_ingestion.graph.node import Node
 from backend.data_ingestion.graph.persist_data import load_edges, load_nodes
 from backend.users.user_profile import UserProfile
 from backend.users.manage_user_profiles import load_user_profile
+from backend.routes.feature_extraction import compute_route_features
 
 MILES_TO_METERS = 1609.344
 INVERTED_INDEX_PATH = (
@@ -109,8 +110,6 @@ def _score_tags_for_user_profile(user_profile: UserProfile) -> List[str]:
 
 
 def _score_tags_from_user_id(user_id: str) -> List[str]:
-    from backend.users.manage_user_profiles import load_user_profile
-
     user_profile = load_user_profile(user_id)
     return _score_tags_for_user_profile(user_profile)
 
@@ -145,19 +144,42 @@ def score_routes_for_user_profile(
     user_profile: UserProfile,
     edges: Optional[Dict[int, Edge]] = None,
 ) -> List[Tuple[Route, float]]:
+    min_route_count = 10
+
     if edges is None:
         edges = load_edges()
 
-    from backend.routes.feature_extraction import compute_route_features
-
-    scored_routes: List[Tuple[Route, float]] = []
+    allowed_scored_routes: List[Tuple[Route, float]] = []
+    disallowed_scored_routes: List[Tuple[Route, float]] = []
     for route in routes:
         features = compute_route_features(route, edges)
-        if not user_profile.allowed(features):
-            continue
-        scored_routes.append((route, user_profile.score(features)))
+        score = user_profile.score(features)
+        if user_profile.allowed(features):
+            allowed_scored_routes.append((route, score))
+        else:
+            disallowed_scored_routes.append((route, score))
 
-    return sorted(scored_routes, key=lambda x: x[1], reverse=True)
+    allowed_scored_routes = sorted(allowed_scored_routes, key=lambda x: x[1], reverse=True)
+    if len(allowed_scored_routes) >= min_route_count:
+        return allowed_scored_routes
+
+    disallowed_scored_routes = sorted(disallowed_scored_routes, key=lambda x: x[1], reverse=True)
+    selected_route_keys = {
+        (tuple(route.node_ids), tuple(route.edge_ids), route.distance_m)
+        for route, _ in allowed_scored_routes
+    }
+    combined_scored_routes = allowed_scored_routes[:]
+
+    for route, score in disallowed_scored_routes:
+        route_key = (tuple(route.node_ids), tuple(route.edge_ids), route.distance_m)
+        if route_key in selected_route_keys:
+            continue
+        combined_scored_routes.append((route, score))
+        selected_route_keys.add(route_key)
+        if len(combined_scored_routes) >= min_route_count:
+            break
+
+    return combined_scored_routes
 
 def _candidate_start_nodes(
     nodes: Dict[int, Node],
