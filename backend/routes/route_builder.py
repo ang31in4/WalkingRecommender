@@ -14,7 +14,6 @@ from backend.data_ingestion.graph.node import Node
 from backend.data_ingestion.graph.persist_data import load_edges, load_nodes
 from backend.users.user_profile import UserProfile
 from backend.users.manage_user_profiles import load_user_profile
-from backend.routes.feature_extraction import compute_route_features
 
 MILES_TO_METERS = 1609.344
 INVERTED_INDEX_PATH = (
@@ -144,6 +143,7 @@ def score_routes_for_user_profile(
     user_profile: UserProfile,
     edges: Optional[Dict[int, Edge]] = None,
 ) -> List[Tuple[Route, float]]:
+    from backend.routes.feature_extraction import compute_route_features
     min_route_count = 10
 
     if edges is None:
