@@ -10,7 +10,7 @@ struct RouteCard: View {
             Text(route.name)
                 .font(.headline)
                 .foregroundColor(.primary)
-            Text(String(format: "%.2f mi", route.length))
+            Text(String(format: "%.0f mi", route.length))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }

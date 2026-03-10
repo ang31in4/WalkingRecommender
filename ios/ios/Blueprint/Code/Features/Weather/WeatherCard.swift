@@ -20,7 +20,7 @@ struct WeatherInfoView: View {
                     .font(.system(size: 13, weight: .medium))
                 Text("Temperature: \(Int(round(current_weather.current.temp)))°F").font(.system(size: 13, weight: .medium))
                 Text("Humidity: \(current_weather.current.humidity)").font(.system(size: 13, weight: .medium))
-                Text("UV index: \(current_weather.current.uvi)").font(.system(size: 13, weight: .medium))
+                Text("UV index: \(Int(round(current_weather.current.uvi)))").font(.system(size: 13, weight: .medium))
             }
         }
         .font(.system(size: 11))
