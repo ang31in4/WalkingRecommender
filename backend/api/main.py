@@ -2,8 +2,14 @@ from flask import jsonify, request
 from flask_cors import CORS
 
 from backend.data_ingestion.graph.persist_data import load_nodes
-from backend.routes.route_builder import build_routes, PRESET_PARAMS, routes_to_geojson
 from backend.api.login import app
+from backend.routes.route_builder import (
+    PRESET_PARAMS,
+    _score_tags_from_user_id,
+    build_routes,
+    routes_to_geojson,
+    score_routes_for_tag,
+)
 
 CORS(app)
 
@@ -72,16 +78,37 @@ def _get_route_params():
         data.get("edge_reuse_penalty"), params["edge_reuse_penalty"]
     )
     params["allow_edge_reuse"] = _parse_bool(data.get("allow_edge_reuse"), params["allow_edge_reuse"])
+    score_tag = data.get("score_tag")
+    if score_tag is not None:
+        params["score_tag"] = score_tag
 
     return params
+
+def _build_scored_geojson(params):
+    routes = build_routes(**params)
+
+    selected_tag = None
+    if params.get("user_id"):
+        selected_tag = _score_tags_from_user_id(params["user_id"])
+    elif params.get("score_tag"):
+        selected_tag = params["score_tag"]
+
+    scored_routes = (
+        score_routes_for_tag(routes, tag=selected_tag)
+        if selected_tag
+        else [(route, 0.0) for route in routes]
+    )
+    top_scored_routes = scored_routes[: params["max_routes"]]
+    top_routes = [route for route, _ in top_scored_routes]
+    route_scores = {tuple(route.edge_ids): score for route, score in top_scored_routes}
+    return routes_to_geojson(top_routes, load_nodes(), route_scores=route_scores)
 
 
 @app.route("/api/routes", methods=["GET"])
 def get_routes():
     try:
         params = _get_route_params()
-        routes = build_routes(**params)
-        geojson = routes_to_geojson(routes, load_nodes())
+        geojson = _build_scored_geojson(params)
         return jsonify(geojson)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -91,8 +118,7 @@ def get_routes():
 def post_routes():
     try:
         params = _get_route_params()
-        routes = build_routes(**params)
-        geojson = routes_to_geojson(routes, load_nodes())
+        geojson = _build_scored_geojson(params)
         return jsonify(geojson)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
