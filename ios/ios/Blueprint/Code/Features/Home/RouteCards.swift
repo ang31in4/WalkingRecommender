@@ -28,7 +28,6 @@ struct RouteCard_AllCategories: View {
     @ObservedObject var locationSearch: LocationSearch
     var userId: String?
     var onRouteSelected: ((Route) -> Void)?
-    @State private var originalRoutes: [Route] = []
     @State private var allRoutes: [Route] = []
     @State private var isLoading = true
     @State private var isLoadingSupplement = false
@@ -39,7 +38,11 @@ struct RouteCard_AllCategories: View {
 
     private var filterChangeId: String {
         let f = filterViewModel.currentFilter
-        return "\(f.selectedDistance?.rawValue ?? "nil")-\(f.selectedDifficulty?.rawValue ?? "nil")-\(f.selectedSuitability.count)"
+        let suitabilityKey = f.selectedSuitability
+            .map { $0.rawValue }
+            .sorted()
+            .joined(separator: ",")
+        return "\(f.selectedDistance?.rawValue ?? "nil")-\(f.selectedDifficulty?.rawValue ?? "nil")-\(suitabilityKey)"
     }
 
     var body: some View {
@@ -70,39 +73,27 @@ struct RouteCard_AllCategories: View {
             }
         }
         .task(id: "\(locationSearch.activeLocation.latitude)-\(locationSearch.activeLocation.longitude)") {
-            let (minM, maxM) = (100.0, 5000.0)
-            let (lat, lon, minDM, maxDM) = locationSearch.routeParams(minDistanceM: minM, maxDistanceM: maxM)
-            let fromAPI = await loadGeoJsonFromAPI(
-                latitude: lat,
-                longitude: lon,
-                minDistanceM: minDM,
-                maxDistanceM: maxDM,
-                userId: userId
-            )
-            let routes = fromAPI
-            originalRoutes = routes
-            allRoutes = routes
+            await fetchRoutesForCurrentFilter(syncFilterToUserProfile: false)
             isLoading = false
         }
-        .onChange(of: filterChangeId) { _, _ in checkAndFetchSupplement() }
-    }
-
-    private func checkAndFetchSupplement() {
-        guard !filterViewModel.currentFilter.isDefault else {
-            allRoutes = originalRoutes
-            return
-        }
-        let filtered = filterRoutes(allRoutes, by: filterViewModel.currentFilter)
-        guard filtered.count < 10 else { return }
-
-        Task {
-            await fetchWithFilterParams()
+        .onChange(of: filterChangeId) { _, _ in
+            Task {
+                await fetchRoutesForCurrentFilter(syncFilterToUserProfile: true)
+            }
         }
     }
 
-    private func fetchWithFilterParams() async {
+    private func fetchRoutesForCurrentFilter(syncFilterToUserProfile: Bool) async {
         isLoadingSupplement = true
-        let (minM, maxM) = DistanceRange.minMaxMeters(for: filterViewModel.currentFilter.selectedDistance)
+        let currentFilter = filterViewModel.currentFilter
+
+        if syncFilterToUserProfile,
+           !currentFilter.isDefault,
+           let uid = userId {
+            _ = try? await postFilters(userId: uid, filter: currentFilter)
+        }
+
+        let (minM, maxM) = DistanceRange.minMaxMeters(for: currentFilter.selectedDistance)
         let (lat, lon, minDM, maxDM) = locationSearch.routeParams(minDistanceM: minM, maxDistanceM: maxM)
         let fromAPI = await loadGeoJsonFromAPI(
             latitude: lat,
@@ -115,4 +106,3 @@ struct RouteCard_AllCategories: View {
         isLoadingSupplement = false
     }
 }
-
