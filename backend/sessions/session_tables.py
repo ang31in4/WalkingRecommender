@@ -116,18 +116,17 @@ def insert_filters(conn, interaction_id, filters:SearchFilters):
                     difficulty,
                     distance,
                     wheelchair_access,
-                    avoid_steps,
                     pet_friendly,
                     urban
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?);
+                VALUES (?, ?, ?, ?, ?, ?);
                 """,
                 (
                     interaction_id,
                     filters.difficulty,
                     filters.distance,
                     int(filters.wheelchair_access),
-                    int(filters.avoid_steps),
+                    # int(filters.avoid_steps),
                     int(filters.pet_friendly),
                     int(filters.urban),
                 )

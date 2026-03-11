@@ -8,42 +8,73 @@ struct ContentView: View {
     var body: some View {
         Group {
             if loginViewModel.isLoggedIn {
-                HomeView(filterViewModel: filterViewModel, loginViewModel: loginViewModel)
+                HomeView(loginViewModel: loginViewModel)
             } else {
                 LoginScreen(viewModel: loginViewModel)
             }
         }
-        .sheet(isPresented: $filterViewModel.isFilterSheetPresented) {
-            FilterSheetView(filterViewModel: filterViewModel, userId: loginViewModel.userId)
-        }
+//        .sheet(isPresented: $filterViewModel.isFilterSheetPresented) {
+//            FilterSheetView(filterViewModel: filterViewModel, userId: loginViewModel.userId)
+//        }
     }
 }
 
 struct HomeView: View {
     @StateObject private var locationSearch = LocationSearch()
-    @ObservedObject var filterViewModel: FilterViewModel
+    @StateObject private var filterViewModel = FilterViewModel()
     @ObservedObject var loginViewModel: LoginViewModel
     @State private var selectedRoute: Route?
 
     var body: some View {
-        VStack {
-            WeatherView(locationSearch: locationSearch)
-            HStack(alignment: .center) {
-                InputView(locationSearch: locationSearch)
-                FilterButtonView(filterViewModel: filterViewModel)
-                .font(.caption)
+        GeometryReader { geo in
+            let headerH = geo.size.width / 2.25
+            VStack(spacing: 0) {
+                WeatherView(locationSearch: locationSearch)
+                    .frame(height: headerH)
+                    .overlay(alignment: .bottom) {
+                        HStack(alignment: .center) {
+                            // Constrain InputView so its dropdown/overlays can't intercept route scrolling.
+                            InputView(locationSearch: locationSearch)
+                                .frame(height: 44)
+                            FilterButtonView(filterViewModel: filterViewModel)
+                                .font(.caption)
+                        }
+                        .padding(20)
+                        .clipped()
+                    }
+                    .clipped()
+                    .zIndex(0)
+                
+                RouteCard_AllCategories(
+                    filterViewModel: filterViewModel,
+                    locationSearch: locationSearch,
+                    userId: loginViewModel.userId,
+                    onRouteSelected: { selectedRoute = $0 }
+                )
+                .zIndex(1)
+                .frame(height: max(0, geo.size.height - headerH))
+                .padding(.horizontal, 30)
+                .padding(.vertical, 8)
             }
-            .padding(20)
-            RouteCard_AllCategories(
-                filterViewModel: filterViewModel,
-                locationSearch: locationSearch,
-                userId: loginViewModel.userId,
-                onRouteSelected: { selectedRoute = $0 }
-            )
-            .padding(30)
-            Button("Logout") {
-                loginViewModel.logout()
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+        }
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                Spacer()
+                Button("Logout") {
+                    loginViewModel.logout()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+                .background(Color.green)
+                .foregroundStyle(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+                Spacer()
             }
+            .padding(.vertical, 12)
+        }
+        .sheet(isPresented: $filterViewModel.isFilterSheetPresented) {
+            FilterSheetView(filterViewModel: filterViewModel, userId: loginViewModel.userId)
         }
         .sheet(item: $selectedRoute) { route in
             NavigationStack {

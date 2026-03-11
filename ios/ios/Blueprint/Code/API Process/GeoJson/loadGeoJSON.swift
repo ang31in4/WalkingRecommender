@@ -22,38 +22,38 @@ func filterRoutes(_ routes: [Route], by filter: FilterModel) -> [Route] {
     }
 }
 
-func loadGeoJson() -> [Route] {
-    guard let url = Bundle.main.url(forResource: "SampleGeoJson", withExtension: "geojson") else {
-        print("Error: file not found in Bundle")
-        return []
-    }
-
-    guard let data = try? Data(contentsOf: url) else {
-        print("Error: couldn't read file")
-        return []
-    }
-
-    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-          let type = json["type"] as? String else {
-        return []
-    }
-
-    let decoder = JSONDecoder()
-    if type == "Feature" {
-        if let route = try? decoder.decode(Route.self, from: data) {
-            return [route]
-        }
-    } else if type == "FeatureCollection",
-              let features = json["features"] as? [[String: Any]] {
-        return features.compactMap { feature in
-            guard let featureData = try? JSONSerialization.data(withJSONObject: feature),
-                  let route = try? decoder.decode(Route.self, from: featureData) else { return nil }
-            return route
-        }
-    }
-
-    return []
-}
+//func loadGeoJson() -> [Route] {
+//    guard let url = Bundle.main.url(forResource: "SampleGeoJson", withExtension: "geojson") else {
+//        print("Error: file not found in Bundle")
+//        return []
+//    }
+//
+//    guard let data = try? Data(contentsOf: url) else {
+//        print("Error: couldn't read file")
+//        return []
+//    }
+//
+//    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+//          let type = json["type"] as? String else {
+//        return []
+//    }
+//
+//    let decoder = JSONDecoder()
+//    if type == "Feature" {
+//        if let route = try? decoder.decode(Route.self, from: data) {
+//            return [route]
+//        }
+//    } else if type == "FeatureCollection",
+//              let features = json["features"] as? [[String: Any]] {
+//        return features.compactMap { feature in
+//            guard let featureData = try? JSONSerialization.data(withJSONObject: feature),
+//                  let route = try? decoder.decode(Route.self, from: featureData) else { return nil }
+//            return route
+//        }
+//    }
+//
+//    return []
+//}
 
 func loadGeoJsonFromAPI(
     latitude: Double,
@@ -74,6 +74,7 @@ func loadGeoJsonFromAPI(
         "min_distance_m": minDistanceM,
         "max_distance_m": maxDistanceM,
         "max_start_distance_m": 2000.0,
+        "max_routes": 100,
     ]
     if let uid = userId, !uid.isEmpty {
         body["user_id"] = uid
@@ -98,16 +99,20 @@ func loadGeoJsonFromAPI(
             print("API load failed: response is not FeatureCollection or missing features")
             return []
         }
-        let decoder = JSONDecoder()
-        var routes: [Route] = []
-        for (i, feature) in features.enumerated() {
-            guard let featureData = try? JSONSerialization.data(withJSONObject: feature),
-                  let route = try? decoder.decode(Route.self, from: featureData) else {
-                print("API load: failed to decode feature at index \(i)")
-                continue
+        // Decode routes off the main actor so UI stays responsive
+        let routes = await Task.detached(priority: .userInitiated) {
+            let decoder = JSONDecoder()
+            var result: [Route] = []
+            for (i, feature) in features.enumerated() {
+                guard let featureData = try? JSONSerialization.data(withJSONObject: feature),
+                      let route = try? decoder.decode(Route.self, from: featureData) else {
+                    print("API load: failed to decode feature at index \(i)")
+                    continue
+                }
+                result.append(route)
             }
-            routes.append(route)
-        }
+            return result
+        }.value
         if !routes.isEmpty {
             print("Loaded \(routes.count) routes from API")
         }

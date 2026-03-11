@@ -53,7 +53,10 @@ struct WeatherView: View {
                 GradientOverlay(width: cardWidth, height: cardHeight)
                 WeatherInfoView(locationSearch: locationSearch).padding(20)
             }
+            .frame(width: cardWidth, height: cardHeight, alignment: .topLeading)
+            .clipped()
         }
+        .frame(height: UIScreen.main.bounds.width / 2.25)
     }
 }
 

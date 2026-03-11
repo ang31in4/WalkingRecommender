@@ -558,7 +558,7 @@ PRESET_PARAMS = dict(
     max_routes=1000000, # Number of routes to return (after scoring and/or time budget)
     max_attempts=1000000, # Upper bound on generation attempts (loop iterations trying random starts/routes)
     max_steps=20000, # Max edges/hops per single route construction attempt before giving up.
-    time_budget_s=5.0,
+    time_budget_s=None,  # no time limit; generate until max_routes or max_attempts
 
     # Tag-based scoring parameters
     tag_bias=1.0, # Weight bonus when selecting candidate edges that match score_tag.

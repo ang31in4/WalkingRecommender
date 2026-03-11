@@ -2,6 +2,11 @@ import Foundation
 import SwiftUI
 internal import _LocationEssentials
 
+private struct RoutesScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
 struct RouteCard: View {
     let route: Route
 
@@ -28,13 +33,14 @@ struct RouteCard_AllCategories: View {
     @ObservedObject var locationSearch: LocationSearch
     var userId: String?
     var onRouteSelected: ((Route) -> Void)?
-    @State private var originalRoutes: [Route] = []
-    @State private var allRoutes: [Route] = []
+//    @State private var originalRoutes: [Route] = []
+    @State private var routes: [Route] = []
     @State private var isLoading = true
     @State private var isLoadingSupplement = false
+    @State private var lastScrollOffset: CGFloat = .nan
 
     private var filteredRoutes: [Route] {
-        filterRoutes(allRoutes, by: filterViewModel.currentFilter)
+        filterRoutes(routes, by: filterViewModel.currentFilter)
     }
 
     private var filterChangeId: String {
@@ -53,24 +59,66 @@ struct RouteCard_AllCategories: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else if filteredRoutes.isEmpty {
-                Text(allRoutes.isEmpty ? "No routes available for this location. Try UCI area or adjust filters." : "No routes match your filters")
+                Text(routes.isEmpty ? "No routes available for this location. Try UCI area or adjust filters." : "No routes match your filters")
                     .foregroundColor(.secondary)
             } else {
-                Text("Suggested for you")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                        ForEach(filteredRoutes.prefix(10)) { route in
-                            RouteCard(route: route)
-                                .onTapGesture { onRouteSelected?(route) }
+                ScrollViewReader { proxy in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Suggested for you")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Button("Scroll to bottom") {
+                            print("[RouteCards] scrollToBottom tapped")
+                            guard let last = filteredRoutes.last else { return }
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo(last.id, anchor: .bottom)
+                            }
+                        }
+                        .font(.caption)
+                    }
+
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVStack(spacing: 12) {
+                            GeometryReader { g in
+                                Color.clear.preference(
+                                    key: RoutesScrollOffsetKey.self,
+                                    value: g.frame(in: .named("routesScroll")).minY
+                                )
+                            }
+                            .frame(height: 0)
+
+                            ForEach(filteredRoutes) { route in
+                                RouteCard(route: route)
+                                    .id(route.id)
+                                    .frame(maxWidth: .infinity)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { onRouteSelected?(route) }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .coordinateSpace(name: "routesScroll")
+                    .layoutPriority(1)
+                    .frame(minHeight: 0, maxHeight: .infinity)
+                    .onAppear { print("[RouteCards] Showing \(filteredRoutes.count) routes in scroll view") }
+                    .onPreferenceChange(RoutesScrollOffsetKey.self) { offset in
+                        if lastScrollOffset.isNaN {
+                            lastScrollOffset = offset
+                            print("[RouteCards] initial scroll offset \(offset)")
+                            return
+                        }
+                        if abs(offset - lastScrollOffset) >= 2 {
+                            print("[RouteCards] scroll offset \(offset)")
+                            lastScrollOffset = offset
                         }
                     }
                 }
             }
         }
+        .frame(minHeight: 0, maxHeight: .infinity)
         .task(id: "\(locationSearch.activeLocation.latitude)-\(locationSearch.activeLocation.longitude)") {
-            let (minM, maxM) = (100.0, 5000.0)
+            let (minM, maxM) = (100.0, 16093.0)
             let (lat, lon, minDM, maxDM) = locationSearch.routeParams(minDistanceM: minM, maxDistanceM: maxM)
             let fromAPI = await loadGeoJsonFromAPI(
                 latitude: lat,
@@ -79,40 +127,46 @@ struct RouteCard_AllCategories: View {
                 maxDistanceM: maxDM,
                 userId: userId
             )
-            let routes = fromAPI
-            originalRoutes = routes
-            allRoutes = routes
+            routes = fromAPI
             isLoading = false
+            print("[RouteCards] Routes loaded: \(routes.count) from API")
+//            originalRoutes = routes
+//            allRoutes = routes
+//            // If filters are on and we have fewer than 10 after filtering, fetch more matching routes
+//            if !filterViewModel.currentFilter.isDefault,
+//               filterRoutes(routes, by: filterViewModel.currentFilter).count < 10 {
+//                await fetchWithFilterParams()
+//            }
         }
-        .onChange(of: filterChangeId) { _, _ in checkAndFetchSupplement() }
+//        .onChange(of: filterChangeId) { _, _ in checkAndFetchSupplement() }
     }
 
-    private func checkAndFetchSupplement() {
-        guard !filterViewModel.currentFilter.isDefault else {
-            allRoutes = originalRoutes
-            return
-        }
-        let filtered = filterRoutes(allRoutes, by: filterViewModel.currentFilter)
-        guard filtered.count < 10 else { return }
-
-        Task {
-            await fetchWithFilterParams()
-        }
-    }
-
-    private func fetchWithFilterParams() async {
-        isLoadingSupplement = true
-        let (minM, maxM) = DistanceRange.minMaxMeters(for: filterViewModel.currentFilter.selectedDistance)
-        let (lat, lon, minDM, maxDM) = locationSearch.routeParams(minDistanceM: minM, maxDistanceM: maxM)
-        let fromAPI = await loadGeoJsonFromAPI(
-            latitude: lat,
-            longitude: lon,
-            minDistanceM: minDM,
-            maxDistanceM: maxDM,
-            userId: userId
-        )
-        allRoutes = fromAPI
-        isLoadingSupplement = false
-    }
+//    private func checkAndFetchSupplement() {
+//        guard !filterViewModel.currentFilter.isDefault else {
+//            allRoutes = originalRoutes
+//            return
+//        }
+//        let filtered = filterRoutes(allRoutes, by: filterViewModel.currentFilter)
+//        guard filtered.count < 30 else { return }
+//
+//        Task {
+//            await fetchWithFilterParams()
+//        }
+//    }
+//
+//    private func fetchWithFilterParams() async {
+//        isLoadingSupplement = true
+//        let (minM, maxM) = DistanceRange.minMaxMeters(for: filterViewModel.currentFilter.selectedDistance)
+//        let (lat, lon, minDM, maxDM) = locationSearch.routeParams(minDistanceM: minM, maxDistanceM: maxM)
+//        let fromAPI = await loadGeoJsonFromAPI(
+//            latitude: lat,
+//            longitude: lon,
+//            minDistanceM: minDM,
+//            maxDistanceM: maxDM,
+//            userId: userId
+//        )
+//        routes = fromAPI
+//        isLoadingSupplement = false
+//    }
 }
 

@@ -17,9 +17,11 @@ from backend.sessions.session_tables import (
     insert_selected_route,
 )
 from backend.sessions.search_filters import SearchFilters
+from backend.api.routes import register_routes
 
 app = Flask(__name__)
 CORS(app)
+register_routes(app)
 
 def user_exists(user_id: str) -> bool:
     """Check if a user_id exists in the database."""
@@ -98,7 +100,7 @@ def post_filters():
         difficulty=data.get("difficulty") or None,
         distance=data.get("distance") or None,
         wheelchair_access=parse_bool("wheelchair_access"),
-        avoid_steps=parse_bool("avoid_steps"),
+        # avoid_steps=parse_bool("avoid_steps"),
         pet_friendly=parse_bool("pet_friendly"),
         urban=parse_bool("urban"),
     )
@@ -122,7 +124,7 @@ def post_filters():
             difficulty=None,
             distance=None,
             wheelchair_access=False,
-            avoid_steps=False,
+            # avoid_steps=False,
             pet_friendly=False,
             urban=False,
         )
@@ -170,7 +172,7 @@ def post_route_selected():
             difficulty=None,
             distance=None,
             wheelchair_access=False,
-            avoid_steps=False,
+            # avoid_steps=False,
             pet_friendly=False,
             urban=False,
         )
@@ -189,7 +191,3 @@ def post_route_selected():
     conn.close()
 
     return jsonify({"success": True}), 200
-
-
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5050)

@@ -6,10 +6,19 @@ struct FiltersPostBody: Encodable {
     let difficulty: String?
     let distance: String?
     let wheelchair_access: Bool
-    let avoid_steps: Bool
+//    let avoid_steps: Bool
     let pet_friendly: Bool
     let urban: Bool
 }
+
+//{
+//  "user_id": "user_123",
+//  "difficulty": null,
+//  "distance": null,
+//  "wheelchair_access": false,
+//  "pet_friendly": false,
+//  "urban": false
+//}
 
 /// Maps FilterModel to backend format and POSTs to /api/filters so get_last_filters_for_user returns these on next login.
 func postFilters(userId: String, filter: FilterModel) async throws {
@@ -27,7 +36,7 @@ func postFilters(userId: String, filter: FilterModel) async throws {
         difficulty: difficulty,
         distance: distance,
         wheelchair_access: wheelchair_access,
-        avoid_steps: false,
+//        avoid_steps: false,
         pet_friendly: pet_friendly,
         urban: urban
     )
