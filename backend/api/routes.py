@@ -76,8 +76,10 @@ def _get_route_params():
 def get_routes():
     try:
         params = _get_route_params()
-        routes = build_routes(**params, return_scores=True)
-        geojson = routes_to_geojson(routes, load_nodes())
+        scored_routes = build_routes(**params, return_scores=True)
+        routes = [route for route, _ in scored_routes]
+        route_scores = {tuple(route.edge_ids): score for route, score in scored_routes}
+        geojson = routes_to_geojson(routes, load_nodes(), route_scores=route_scores)
         return jsonify(geojson)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -86,8 +88,10 @@ def get_routes():
 def post_routes():
     try:
         params = _get_route_params()
-        routes = build_routes(**params, return_scores=True)
-        geojson = routes_to_geojson(routes, load_nodes())
+        scored_routes = build_routes(**params, return_scores=True)
+        routes = [route for route, _ in scored_routes]
+        route_scores = {tuple(route.edge_ids): score for route, score in scored_routes}
+        geojson = routes_to_geojson(routes, load_nodes(), route_scores=route_scores)
         return jsonify(geojson)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
