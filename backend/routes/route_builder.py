@@ -316,7 +316,8 @@ def build_routes(
     route_similarity_threshold: float = 1.0,
     edge_reuse_penalty: float = 2.0,
     allow_edge_reuse: bool = False,
-) -> List[Route]:
+    return_scores: bool = False,
+) -> Union[List[Route], List[Tuple[Route, float]]]:
     """Build candidate routes.
 
     If ``time_budget_s`` is provided, route generation runs until the time budget
@@ -450,9 +451,22 @@ def build_routes(
             user_profile=user_profile,
             edges=edges,
         )
-        return [route for route, _ in profile_scored_routes[:max_routes]]
+        final_routes = [route for route, _ in profile_scored_routes[:max_routes]]
+    else:
+        final_routes = candidate_routes[:max_routes]
 
-    return candidate_routes
+    scored_routes = (
+        score_routes_for_tag(final_routes, tag=normalized_score_tags, edges=edges)
+        if normalized_score_tags
+        else [(route, 0.0) for route in final_routes]
+    )
+
+    if return_scores:
+        return scored_routes
+
+    if normalized_score_tags:
+        return [route for route, _ in scored_routes]
+    return final_routes
 
 
 def _preferred_street_name(edge_ids: Sequence[int], edges: Dict[int, Edge], reverse: bool = False) -> Optional[str]:
@@ -564,15 +578,9 @@ PRESET_PARAMS = dict(
 )
 
 if __name__ == "__main__":
-    routes = build_routes(**PRESET_PARAMS)
-    if PRESET_PARAMS.get("user_id"):
-        selected_tag = _score_tags_from_user_id(PRESET_PARAMS["user_id"])
-    scored_routes = (
-        score_routes_for_tag(routes, tag=selected_tag)
-        if selected_tag
-        else [(route, 0.0) for route in routes]
-    )
+    scored_routes = build_routes(**PRESET_PARAMS, return_scores=True)
 
+    # Prints top 10 routes
     top_n = 10
     top_scored_routes = scored_routes[:top_n]
     top_routes = [route for route, _ in top_scored_routes]

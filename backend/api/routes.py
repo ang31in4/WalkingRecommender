@@ -76,7 +76,7 @@ def _get_route_params():
 def get_routes():
     try:
         params = _get_route_params()
-        routes = build_routes(**params)
+        routes = build_routes(**params, return_scores=True)
         geojson = routes_to_geojson(routes, load_nodes())
         return jsonify(geojson)
     except ValueError as e:
@@ -86,7 +86,7 @@ def get_routes():
 def post_routes():
     try:
         params = _get_route_params()
-        routes = build_routes(**params)
+        routes = build_routes(**params, return_scores=True)
         geojson = routes_to_geojson(routes, load_nodes())
         return jsonify(geojson)
     except ValueError as e:
