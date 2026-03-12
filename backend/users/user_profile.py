@@ -32,6 +32,7 @@ class UserProfile:
         if self.avoid_steps and features.steps_ratio > 0:
             return False
         
+        """
         # distance
         if self.min_length_m is not None:
             if features.length_m < self.min_length_m:
@@ -50,6 +51,7 @@ class UserProfile:
         if self.bringing_dog:
             if features.dog_friendly_ratio < 0.7:
                 return False
+        """
         
         return True
 

@@ -273,6 +273,8 @@ def _build_route_from_start(
     target_distance_m = (min_distance_m + max_distance_m) / 2
     edge_visit_counts: Dict[int, int] = {}
 
+    target_distance_m = random.uniform(min_distance_m, max_distance_m)
+
     for _ in range(max_steps):
         next_edge_id = _select_next_edge(
             adjacency.map.get(current_node_id, []),
@@ -294,7 +296,7 @@ def _build_route_from_start(
         distance_m += edge.distance_m
         current_node_id = edge.end_node
         node_ids.append(current_node_id)
-        if distance_m >= min_distance_m:
+        if distance_m >= target_distance_m:
             return Route(node_ids=node_ids, edge_ids=edge_ids, distance_m=distance_m)
     return None
 
@@ -566,7 +568,7 @@ PRESET_PARAMS = dict(
     max_start_distance_m=250.0, # How far starting point can be from user location
     max_routes=1000000, # Number of routes to return (after scoring and/or time budget)
     max_attempts=1000000, # Upper bound on generation attempts (loop iterations trying random starts/routes)
-    max_steps=20000, # Max edges/hops per single route construction attempt before giving up.
+    max_steps=1000000, # Max edges/hops per single route construction attempt before giving up.
     time_budget_s=None,  # no time limit; generate until max_routes or max_attempts
 
     # Tag-based scoring parameters
