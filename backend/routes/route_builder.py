@@ -144,7 +144,6 @@ def score_routes_for_user_profile(
     edges: Optional[Dict[int, Edge]] = None,
 ) -> List[Tuple[Route, float]]:
     from backend.routes.feature_extraction import compute_route_features
-    min_route_count = 10
 
     if edges is None:
         edges = load_edges()
@@ -160,8 +159,6 @@ def score_routes_for_user_profile(
             disallowed_scored_routes.append((route, score))
 
     allowed_scored_routes = sorted(allowed_scored_routes, key=lambda x: x[1], reverse=True)
-    if len(allowed_scored_routes) >= min_route_count:
-        return allowed_scored_routes
 
     disallowed_scored_routes = sorted(disallowed_scored_routes, key=lambda x: x[1], reverse=True)
     selected_route_keys = {
@@ -176,8 +173,6 @@ def score_routes_for_user_profile(
             continue
         combined_scored_routes.append((route, score))
         selected_route_keys.add(route_key)
-        if len(combined_scored_routes) >= min_route_count:
-            break
 
     return combined_scored_routes
 
