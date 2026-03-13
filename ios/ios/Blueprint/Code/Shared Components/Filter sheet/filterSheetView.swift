@@ -108,11 +108,7 @@ struct FilterSheetView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
 
                 Button("Show") {
-                    let filter = filterViewModel.currentFilter
                     filterViewModel.applyFilter()
-//                    if let uid = userId {
-//                        Task { _ = try? await postFilters(userId: uid, filter: filter) }
-//                    }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)

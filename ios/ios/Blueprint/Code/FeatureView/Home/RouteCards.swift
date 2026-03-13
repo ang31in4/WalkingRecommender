@@ -30,17 +30,17 @@ struct RouteCard: View {
 
 struct RouteCard_AllCategories: View {
     @ObservedObject var filterViewModel: FilterViewModel
+    @ObservedObject var routeViewModel: RouteViewModel
     @ObservedObject var locationSearch: LocationSearch
     var userId: String?
     var onRouteSelected: ((Route) -> Void)?
-//    @State private var originalRoutes: [Route] = []
-    @State private var routes: [Route] = []
     @State private var isLoading = true
     @State private var isLoadingSupplement = false
     @State private var lastScrollOffset: CGFloat = .nan
 
-    private var filteredRoutes: [Route] {
-        filterRoutes(routes, by: filterViewModel.currentFilter)
+    /// Routes to display: from RouteViewModel (filtered when user taps "Show"), so filter sheet applies via applyFilter.
+    private var displayedRoutes: [Route] {
+        routeViewModel.displayedRoutes
     }
 
     private var filterChangeId: String {
@@ -58,8 +58,8 @@ struct RouteCard_AllCategories: View {
                 ProgressView("Fetching more routes…")
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
-            } else if filteredRoutes.isEmpty {
-                Text(routes.isEmpty ? "No routes available for this location. Try UCI area or adjust filters." : "No routes match your filters")
+            } else if displayedRoutes.isEmpty {
+                Text(routeViewModel.allRoutes.isEmpty ? "No routes available for this location. Try UCI area or adjust filters." : "No routes match your filters")
                     .foregroundColor(.secondary)
             } else {
                 ScrollViewReader { proxy in
@@ -70,7 +70,7 @@ struct RouteCard_AllCategories: View {
                         Spacer()
                         Button("Scroll to bottom") {
                             print("[RouteCards] scrollToBottom tapped")
-                            guard let last = filteredRoutes.last else { return }
+                            guard let last = displayedRoutes.last else { return }
                             withAnimation(.easeOut(duration: 0.25)) {
                                 proxy.scrollTo(last.id, anchor: .bottom)
                             }
@@ -88,7 +88,7 @@ struct RouteCard_AllCategories: View {
                             }
                             .frame(height: 0)
 
-                            ForEach(filteredRoutes) { route in
+                            ForEach(displayedRoutes) { route in
                                 RouteCard(route: route)
                                     .id(route.id)
                                     .frame(maxWidth: .infinity)
@@ -101,7 +101,7 @@ struct RouteCard_AllCategories: View {
                     .coordinateSpace(name: "routesScroll")
                     .layoutPriority(1)
                     .frame(minHeight: 0, maxHeight: .infinity)
-                    .onAppear { print("[RouteCards] Showing \(filteredRoutes.count) routes in scroll view") }
+                    .onAppear { print("[RouteCards] Showing \(displayedRoutes.count) routes in scroll view") }
                     .onPreferenceChange(RoutesScrollOffsetKey.self) { offset in
                         if lastScrollOffset.isNaN {
                             lastScrollOffset = offset
@@ -127,9 +127,11 @@ struct RouteCard_AllCategories: View {
                 maxDistanceM: maxDM,
                 userId: userId
             )
-            routes = fromAPI
+            routeViewModel.allRoutes = fromAPI
+            routeViewModel.applyFilter(filterViewModel.currentFilter)
             isLoading = false
-            print("[RouteCards] Routes loaded: \(routes.count) from API")
+            print("[RouteCards] Routes loaded: \(fromAPI.count) from API")
+            
 //            originalRoutes = routes
 //            allRoutes = routes
 //            // If filters are on and we have fewer than 10 after filtering, fetch more matching routes

@@ -8,12 +8,13 @@ struct RouteSelectedPostBody: Encodable {
 /// POST selected route to /api/session/route_selected so it is stored in session_route_selected.
 func postRouteSelected(userId: String, route: Route) async throws {
     let body = RouteSelectedPostBody(user_id: userId)
+    let endpoint = APIEndpoints.postRouteSelected
 
-    guard let url = URL(string: "\(APIConfig.baseURL)/api/session/route_selected") else {
+    guard let url = URL(string: endpoint.urlString) else {
         throw NSError(domain: "RouteSelected", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
     }
     var request = URLRequest(url: url)
-    request.httpMethod = "POST"
+    request.httpMethod = endpoint.method.rawValue
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.httpBody = try JSONEncoder().encode(body)
 

@@ -6,6 +6,9 @@ class FilterViewModel: ObservableObject {
     @Published var currentFilter: FilterModel = FilterModel()
     @Published var isFilterSheetPresented: Bool = false
 
+    /// Called when user taps "Show"; receives the current filter so the caller can apply it (e.g. RouteViewModel.applyFilter).
+    var onApplyFilter: ((FilterModel) -> Void)?
+
     var activeFiltersCount: Int {
         var count = 0
         if currentFilter.selectedDifficulty != nil { count += 1 }
@@ -23,6 +26,7 @@ class FilterViewModel: ObservableObject {
     }
 
     func applyFilter() {
+        onApplyFilter?(currentFilter)
         dismissFilterSheet()
     }
 

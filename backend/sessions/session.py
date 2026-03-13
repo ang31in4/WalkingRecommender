@@ -7,5 +7,3 @@ class SearchSession:
     session_id: int | None
     user_id: str
     timestamp: datetime
-
-    selected_filters: SearchFilters
