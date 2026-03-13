@@ -23,7 +23,10 @@ struct Route: Identifiable, Decodable {
         case lengthMiles = "length_mi"
         case lengthMeters = "length_m"
         case distanceM = "distance_m"
-        case difficulty
+        case pet_friendly = "pet_friendly"
+        case wheelchair_accessible = "wheelchair_accessible"
+        case urban = "urban"
+        case difficulty = "difficulty"
     }
     
     init(from decoder: Decoder) throws {
@@ -56,9 +59,7 @@ extension Route {
         let startLocation = CLLocation(latitude: firstCoordinate.latitude, longitude: firstCoordinate.longitude)
         return userLocation.distance(from: startLocation)
     }
-}
-
-extension Route {
+    
     func asPolyline() -> MKPolyline {
         MKPolyline(coordinates: coordinates, count: coordinates.count)
     }

@@ -541,6 +541,20 @@ def write_routes_geojson(
         json.dump(geojson, handle, indent=2)
     return path
 
+def write_scored_routes(
+    scored_routes: List[Tuple[Route, float]],
+    path: Optional[Path] = None,
+) -> Path:
+    """Write a list of (route, score) to a GeoJSON file with scores in properties."""
+    if not scored_routes:
+        raise ValueError("scored_routes must not be empty")
+    routes = [route for route, _ in scored_routes]
+    route_scores = {tuple(route.edge_ids): score for route, score in scored_routes}
+    if path is None:
+        path = Path(__file__).resolve().parent / "scored_routes.geojson"
+    return write_routes_geojson(routes, path=path, route_scores=route_scores)
+
+
 def print_routes(routes: List[Route], nodes: Dict[int, Node], limit: int = 10) -> None:
     if not routes:
         print("No routes found.")
@@ -578,16 +592,21 @@ PRESET_PARAMS = dict(
 )
 
 if __name__ == "__main__":
+    print("Generating routes...")
     scored_routes = build_routes(**PRESET_PARAMS, return_scores=True)
+    print("Done scoring routes...")
 
-    # Prints top 10 routes
-    top_n = 10
+    # Write all scored routes to file (default: scored_routes.geojson in route_builder directory)
+    if scored_routes:
+        out_path = write_scored_routes(scored_routes)
+        print(f"Wrote {len(scored_routes)} scored routes to {out_path}")
+
+    # Top-n for preview / print
+    top_n = 1  # !! test actual look of a route
     top_scored_routes = scored_routes[:top_n]
     top_routes = [route for route, _ in top_scored_routes]
     route_scores = {tuple(route.edge_ids): score for route, score in top_scored_routes}
-
     write_routes_geojson(top_routes, route_scores=route_scores)
 
-    # Load nodes so we can optionally print coordinates
     nodes = load_nodes()
     print_routes(top_routes, nodes, limit=top_n)

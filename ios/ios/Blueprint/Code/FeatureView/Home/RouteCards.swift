@@ -130,6 +130,7 @@ struct RouteCard_AllCategories: View {
             routes = fromAPI
             isLoading = false
             print("[RouteCards] Routes loaded: \(routes.count) from API")
+            
 //            originalRoutes = routes
 //            allRoutes = routes
 //            // If filters are on and we have fewer than 10 after filtering, fetch more matching routes

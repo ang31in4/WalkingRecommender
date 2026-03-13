@@ -110,9 +110,6 @@ struct FilterSheetView: View {
                 Button("Show") {
                     let filter = filterViewModel.currentFilter
                     filterViewModel.applyFilter()
-//                    if let uid = userId {
-//                        Task { _ = try? await postFilters(userId: uid, filter: filter) }
-//                    }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)

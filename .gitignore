@@ -19,3 +19,5 @@ DerivedData/
 *.db
 *.sqlite
 *.sqlite3
+
+*.geojsonbackend/routes/scored_routes.geojson

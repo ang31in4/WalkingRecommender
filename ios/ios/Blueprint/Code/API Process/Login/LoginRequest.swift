@@ -11,12 +11,13 @@ struct LoginResponse: Decodable {
 }
 
 func loginRequest(userId: String) async throws -> Bool {
-    guard let url = URL(string: "\(APIConfig.baseURL)/api/login") else {
+    let endpoint = APIEndpoints.login
+    guard let url = URL(string: endpoint.urlString) else {
         throw NSError(domain: "Login", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
     }
 
     var request = URLRequest(url: url)
-    request.httpMethod = "POST"
+    request.httpMethod = endpoint.method.rawValue
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
     let body = LoginRequest(user_id: userId)
@@ -31,8 +32,10 @@ func loginRequest(userId: String) async throws -> Bool {
     let decoded = try JSONDecoder().decode(LoginResponse.self, from: data)
 
     if httpResponse.statusCode == 200 && decoded.success {
+        print("User logged in with ID: \(decoded.user_id ?? userId)")
         return true
     }
+    
     return false
 }
 
