@@ -1,12 +1,11 @@
 import Combine
 
-class RouteViewModel {
-    var allRoutes: [Route] = []
-    var displayedRoutes: [Route] = []
-    
+class RouteViewModel: ObservableObject {
+    @Published var allRoutes: [Route] = []
+    @Published var displayedRoutes: [Route] = []
+
     var currentFilter: FilterModel = FilterModel()
 
-    /// Returns true if the route matches the filter. Empty filter categories are ignored.
     private func matchesFilter(_ route: Route, _ filter: FilterModel) -> Bool {
         
         if let difficulty = filter.selectedDifficulty {
@@ -29,16 +28,23 @@ class RouteViewModel {
             if !matchesDistance { return false }
         }
 
-        
+
         if !filter.selectedSuitability.isEmpty {
-            // Route model has no suitability property yet; when added, require route to match at least one selected suitability.
-            // For now we do not filter by suitability so routes are still shown.
+            for suitability in filter.selectedSuitability {
+                let routeValue: Bool?
+                switch suitability {
+                case .petFriendly: routeValue = route.petFriendly
+                case .wheelchairAccessible: routeValue = route.wheelchairAccessible
+                case .urban: routeValue = route.urban
+                }
+                if routeValue != true { return false }
+            }
         }
 
         return true
     }
 
-    /// Returns routes that match the filter. Empty filter categories are not applied.
+    @discardableResult
     func applyFilter(_ filter: FilterModel) -> [Route] {
         currentFilter = filter
         displayedRoutes = allRoutes.filter { matchesFilter($0, filter) }

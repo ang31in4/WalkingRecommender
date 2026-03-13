@@ -13,15 +13,13 @@ struct ContentView: View {
                 LoginScreen(viewModel: loginViewModel)
             }
         }
-//        .sheet(isPresented: $filterViewModel.isFilterSheetPresented) {
-//            FilterSheetView(filterViewModel: filterViewModel, userId: loginViewModel.userId)
-//        }
     }
 }
 
 struct HomeView: View {
     @StateObject private var locationSearch = LocationSearch()
     @StateObject private var filterViewModel = FilterViewModel()
+    @StateObject private var routeViewModel = RouteViewModel()
     @ObservedObject var loginViewModel: LoginViewModel
     @State private var selectedRoute: Route?
 
@@ -47,6 +45,7 @@ struct HomeView: View {
                 
                 RouteCard_AllCategories(
                     filterViewModel: filterViewModel,
+                    routeViewModel: routeViewModel,
                     locationSearch: locationSearch,
                     userId: loginViewModel.userId,
                     onRouteSelected: { selectedRoute = $0 }
@@ -72,6 +71,11 @@ struct HomeView: View {
                 Spacer()
             }
             .padding(.vertical, 12)
+        }
+        .onAppear {
+            filterViewModel.onApplyFilter = { [routeViewModel] filter in
+                routeViewModel.applyFilter(filter)
+            }
         }
         .sheet(isPresented: $filterViewModel.isFilterSheetPresented) {
             FilterSheetView(filterViewModel: filterViewModel, userId: loginViewModel.userId)

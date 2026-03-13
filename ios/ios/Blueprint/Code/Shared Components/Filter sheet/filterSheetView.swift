@@ -108,7 +108,6 @@ struct FilterSheetView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
 
                 Button("Show") {
-                    let filter = filterViewModel.currentFilter
                     filterViewModel.applyFilter()
                 }
                 .frame(maxWidth: .infinity)
