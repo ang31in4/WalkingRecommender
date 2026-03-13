@@ -82,9 +82,15 @@ struct HomeView: View {
         }
         .sheet(item: $selectedRoute) { route in
             NavigationStack {
-                RouteMapView(route: route)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .ignoresSafeArea(edges: .bottom)
+                RouteMapScreen(route: route, onStart: {
+                    let uid = loginViewModel.userId
+                    guard !uid.isEmpty else { return }
+                    Task {
+                        _ = try? await postRouteSelected(userId: uid, route: route)
+                        await MainActor.run { selectedRoute = nil }
+                    }
+                })
+                .ignoresSafeArea(edges: .bottom)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Done") { selectedRoute = nil }

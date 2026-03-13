@@ -92,8 +92,8 @@ class LocationSearch: NSObject, ObservableObject, CLLocationManagerDelegate, MKL
     }
 
     /// Params for route API: latitude, longitude, minDistanceM, maxDistanceM
-    func routeParams(minDistanceM: Double, maxDistanceM: Double) -> (latitude: Double, longitude: Double, minDistanceM: Double, maxDistanceM: Double) {
-        (activeLocation.latitude, activeLocation.longitude, minDistanceM, maxDistanceM)
+    func routeParams() -> (latitude: Double, longitude: Double) {
+        (activeLocation.latitude, activeLocation.longitude)
     }
 
     func selectCompletion(_ completion: MKLocalSearchCompletion) {

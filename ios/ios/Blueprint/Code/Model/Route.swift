@@ -57,6 +57,46 @@ struct Route: Identifiable, Decodable {
         self.urban = try propertiesContainer.decodeIfPresent(Bool.self, forKey: .urban)
         self.id = UUID().uuidString
     }
+
+    /// For previews and testing without the backend.
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        difficulty: String = "moderate",
+        coordinates: [CLLocationCoordinate2D],
+        length: Double,
+        petFriendly: Bool? = nil,
+        wheelchairAccessible: Bool? = nil,
+        urban: Bool? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.difficulty = difficulty
+        self.coordinates = coordinates
+        self.length = length
+        self.petFriendly = petFriendly
+        self.wheelchairAccessible = wheelchairAccessible
+        self.urban = urban
+    }
+
+    /// Sample route for previews (e.g. MapView without backend).
+    static var sample: Route {
+        let coords: [CLLocationCoordinate2D] = [
+            CLLocationCoordinate2D(latitude: 33.6405, longitude: -117.8443),
+            CLLocationCoordinate2D(latitude: 33.6410, longitude: -117.8438),
+            CLLocationCoordinate2D(latitude: 33.6415, longitude: -117.8430),
+            CLLocationCoordinate2D(latitude: 33.6420, longitude: -117.8425),
+            CLLocationCoordinate2D(latitude: 33.6425, longitude: -117.8420),
+        ]
+        return Route(
+            name: "Sample Loop (1.2 mi)",
+            difficulty: "moderate",
+            coordinates: coords,
+            length: 1.2,
+            petFriendly: true,
+            urban: true
+        )
+    }
 }
 
 extension Route {

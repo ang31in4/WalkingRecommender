@@ -4,23 +4,30 @@ import CoreLocation
 func loadGeoJsonFromAPI(
     latitude: Double,
     longitude: Double,
+    userId: String? = nil
 ) async -> [Route] {
     let endpoint = APIEndpoints.getRoutes
     guard let url = URL(string: endpoint.urlString) else {
         print("API load failed: Invalid URL")
         return []
     }
-    
-    var request = URLRequest(url: url)
-        request.httpMethod = endpoint.method.rawValue
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-    if let sessionToken = UserDefaults.standard.string(forKey: "sessionToken") {
-            request.setValue("Bearer \(sessionToken)", forHTTPHeaderField: "Authorization")
-        } else {
-            print("API load failed: No session token found")
-            return []
-        }
+    var body: [String: Any] = [
+        "latitude": latitude,
+        "longitude": longitude,
+    ]
+    if let uid = userId, !uid.isEmpty {
+        body["user_id"] = uid
+    }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = endpoint.method.rawValue
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+        print("API load failed: Could not encode request body")
+        return []
+    }
+    request.httpBody = bodyData
 
     do {
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -31,23 +38,30 @@ func loadGeoJsonFromAPI(
         }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let type = json["type"] as? String,
-              type == "FeatureCollection",
-              let features = json["features"] as? [[String: Any]] else {
-            print("API load failed: response is not FeatureCollection or missing features")
+              type == "FeatureCollection" else {
+            print("API load failed: response is not FeatureCollection")
             return []
         }
-        
-        // Decode routes off the main actor so UI stays responsive
+        let features = json["features"] as? [[String: Any]] ?? []
+        if features.isEmpty {
+            print("API load: backend returned 0 features (check location has graph data)")
+            return []
+        }
+
         let routes = await Task.detached(priority: .userInitiated) {
             let decoder = JSONDecoder()
             var result: [Route] = []
             for (i, feature) in features.enumerated() {
-                guard let featureData = try? JSONSerialization.data(withJSONObject: feature),
-                      let route = try? decoder.decode(Route.self, from: featureData) else {
-                    print("API load: failed to decode feature at index \(i)")
+                guard let featureData = try? JSONSerialization.data(withJSONObject: feature) else {
+                    print("API load: failed to serialize feature at index \(i)")
                     continue
                 }
-                result.append(route)
+                do {
+                    let route = try decoder.decode(Route.self, from: featureData)
+                    result.append(route)
+                } catch {
+                    print("API load: decode failed at index \(i): \(error)")
+                }
             }
             return result
         }.value

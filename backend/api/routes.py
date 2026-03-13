@@ -75,19 +75,18 @@ def _parse_bool(value, default):
 
 # get the long and lat to generate routes
 def get_routes():
-    user_id = g.user.user_id
-
     data = request.get_json(silent=True) or {}
     latitude = data.get("latitude")
     longitude = data.get("longitude")
+    user_id = (data.get("user_id") or "").strip() or None
 
     if not latitude or not longitude:
         return jsonify({"error": "Latitude and longitude are required"}), 400
 
     try:
         params = {
-            "latitude": latitude,
-            "longitude": longitude,
+            "latitude": float(latitude),
+            "longitude": float(longitude),
             "user_id": user_id,
         }
 

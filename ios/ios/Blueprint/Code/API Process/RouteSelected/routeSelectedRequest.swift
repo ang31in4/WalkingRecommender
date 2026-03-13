@@ -5,7 +5,6 @@ struct RouteSelectedPostBody: Encodable {
     let user_id: String
 }
 
-/// POST selected route to /api/session/route_selected so it is stored in session_route_selected.
 func postRouteSelected(userId: String, route: Route) async throws {
     let body = RouteSelectedPostBody(user_id: userId)
     let endpoint = APIEndpoints.postRouteSelected

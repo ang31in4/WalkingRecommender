@@ -78,7 +78,7 @@ def insert_session(conn, session:SearchSession):
     cur.execute("""
                 INSERT INTO search_sessions (user_id, timestamp)
                 VALUES (?, ?)
-                """, 
+                """,
                 (session.user_id, session.timestamp)
                 )
     

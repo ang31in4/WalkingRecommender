@@ -118,13 +118,10 @@ struct RouteCard_AllCategories: View {
         }
         .frame(minHeight: 0, maxHeight: .infinity)
         .task(id: "\(locationSearch.activeLocation.latitude)-\(locationSearch.activeLocation.longitude)") {
-            let (minM, maxM) = (100.0, 16093.0)
-            let (lat, lon, minDM, maxDM) = locationSearch.routeParams(minDistanceM: minM, maxDistanceM: maxM)
+            let (lat, lon) = locationSearch.routeParams()
             let fromAPI = await loadGeoJsonFromAPI(
                 latitude: lat,
                 longitude: lon,
-                minDistanceM: minDM,
-                maxDistanceM: maxDM,
                 userId: userId
             )
             routeViewModel.allRoutes = fromAPI

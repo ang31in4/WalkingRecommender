@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 
 from flask import Flask, jsonify, request
@@ -41,7 +40,6 @@ def post_login():
         return jsonify({"success": False, "error": "Failed to load user profile"}), 500
 
     now = datetime.utcnow()
-    session_token = str(uuid.uuid4())
 
     conn = session_conn()
     make_session_table(conn)
@@ -50,7 +48,6 @@ def post_login():
         session_id=None,
         user_id=user_id,
         timestamp=now,
-        session_token = session_token,
     )
 
     insert_session(conn, session)
@@ -60,7 +57,6 @@ def post_login():
     return jsonify({
         "success": True,
         "user_id": user.user_id,
-        "session_token": session_token,
         "profile": {
             "requires_wheelchair": user.requires_wheelchair,
             "avoid_steps": user.avoid_steps,
