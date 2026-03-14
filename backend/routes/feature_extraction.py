@@ -4,26 +4,39 @@ from ..data_ingestion.graph.edge import Edge
 
 # whether a path is "dog-friendly" is more complex than simply using the "dog" tag
 def edge_dog_score(edge):
-    score = 0.0
+    score = 0.1  # base assumption: most places are somewhat dog-walkable
     t = edge.tags
 
-    if (t.get("sidewalk") and t["sidewalk"] != "no"
-        or t.get("footway") and t["footway"] == "sidewalk"):
-        score += 0.3
-    
-    if t.get("highway") in ("footway", "path"):
-        score += 0.3
+    hw = t.get("highway")
 
-    if t.get("highway") == "residential":
+    # sidewalks or pedestrian areas
+    if (t.get("sidewalk") not in ("no", None)
+        or t.get("footway") == "sidewalk"
+        or hw in ("footway", "pedestrian", "path")):
+        score += 0.35
+
+    # residential streets usually good for dogs
+    if hw in ("residential", "living_street", "service"):
+        score += 0.25
+
+    # parks / green spaces
+    if t.get("leisure") in ("park", "dog_park"):
+        score += 0.35
+
+    # trails
+    if hw in ("path", "track"):
         score += 0.2
-    
-    if t.get("highway") in ("primary", "secondary"):
+
+    # major roads penalty (softer)
+    if hw in ("primary", "secondary", "trunk"):
+        score -= 0.25
+
+    # explicit dog restriction
+    if t.get("dog") == "no":
         score -= 0.4
-    
-    if t.get("dog") != "no":
-        score += 0.2
 
     return max(0.0, min(1.0, score))
+
 
 '''
 input: Route object and dictionary of edges
@@ -32,7 +45,7 @@ The function assigns a ratio for each feature of a route
 which is relative to the length of the route.
 We can use these features in scoring and compare those scores with personal models.
 '''
-def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
+def compute_route_features(route: Route, edges: dict[int, Edge]) -> RouteFeatures:
     total = route.distance_m
 
     sidewalk = lit = residential = major_road = trail = paved = rough = accessible = steps = dog = 0.0
@@ -44,41 +57,61 @@ def compute_route_features(route:Route, edges:dict[int, Edge]) -> RouteFeatures:
         d = e.distance_m
         t = e.tags
 
-        if (t.get("sidewalk") and t["sidewalk"] != "no"
-            or t.get("footway") and t["footway"] == "sidewalk"):
+        hw = t.get("highway")
+        surface = t.get("surface")
+
+        # sidewalks
+        if (
+            t.get("sidewalk") not in ("no", None)
+            or t.get("footway") == "sidewalk"
+            or hw in ("footway", "pedestrian")
+        ):
             sidewalk += d
-        
-        if t.get("lit") == "yes":
+
+        # lighting (assume residential areas are often lit)
+        if t.get("lit") == "yes" or hw in ("residential", "living_street"):
             lit += d
-        
-        if t.get("highway") == "residential":
+
+        # residential environments
+        if hw in ("residential", "living_street", "service"):
             residential += d
-            major_road += d
-        
-        if t.get("highway") in ("primary", "secondary"):
+
+        # major roads
+        if hw in ("primary", "secondary", "trunk", "tertiary"):
             major_road += d
 
-        if t.get("highway") in ("footway", "path"):
+        # trails / walking paths
+        if hw in ("footway", "path", "track"):
             trail += d
-        
-        if t.get("surface") in ("asphalt", "concrete", "paved", "bricks"):
+
+        # paved surfaces
+        if surface in ("asphalt", "concrete", "paved", "bricks") or hw in ("residential", "service"):
             paved += d
 
-        if (t.get("surface") in ("gravel", "dirt", "sand", "unpaved")
-            or t.get("smoothness") == "bad"):
+        # rough terrain
+        if (
+            surface in ("gravel", "dirt", "sand", "ground", "unpaved")
+            or t.get("smoothness") in ("bad", "very_bad")
+        ):
             rough += d
-        
-        if (t.get("wheelchair") == "yes" 
-            or t.get("smoothness") == "good"):
+
+        # accessibility
+        if (
+            t.get("wheelchair") == "yes"
+            or t.get("smoothness") in ("excellent", "good")
+            or hw in ("footway", "pedestrian")
+        ):
             accessible += d
-        
-        if t.get("highway") == "steps":
+
+        # steps
+        if hw == "steps":
             steps += d
 
-        dog_score = edge_dog_score(e)
-        if dog_score >= 0.6:
+        # dog friendliness
+        if edge_dog_score(e) >= 0.3:
             dog += d
-        
+
+        # incline
         if "incline" in t:
             try:
                 incline_sum += float(t["incline"].strip("%")) / 100

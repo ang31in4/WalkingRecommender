@@ -33,19 +33,6 @@ class UserProfile:
             return False
         
         return True
-
-    def distance_preference(self, distance, min_d, max_d):
-        if min_d is None or max_d is None:
-            return 1.0
-
-        midpoint = (min_d + max_d) / 2
-        half_range = (max_d - min_d) / 2
-
-        if half_range == 0:
-            return 1.0
-
-        score = 1 - abs(distance - midpoint) / half_range
-        return max(0.0, score)
     
     def difficulty_penalty(self, difficulty, max_difficulty):
         if max_difficulty is None:
@@ -65,20 +52,13 @@ class UserProfile:
             + self.safety_weight * route_features.safety_score
         )
 
-        # Distance preference
-        distance_score = self.distance_preference(
-            route_features.length_m,
-            self.min_length_m,
-            self.max_length_m
-        )
-
         # Difficulty penalty
         difficulty_factor = self.difficulty_penalty(
             route_features.difficulty_score,
             self.max_difficulty
         )
 
-        return base_score * distance_score * difficulty_factor
+        return base_score * difficulty_factor
     
     def normalize_weights(self):
         total = (

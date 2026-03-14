@@ -26,12 +26,12 @@ class RouteFeatures:
     @property
     def urban_score(self) -> float:
         score = (
-            0.35 * self.sidewalk_ratio 
-            + 0.30 * self.lit_ratio 
-            + 0.25 * self.residential_ratio 
-            - 0.20 * self.steps_ratio
-            - 0.25 * self.major_road_ratio
-        )
+            0.50 * self.sidewalk_ratio
+            + 0.35 * self.lit_ratio
+            + 0.40 * self.residential_ratio
+            - 0.05 * self.steps_ratio
+            - 0.05 * self.major_road_ratio
+            )
         return max(0.0, min(1.0, score))
 
     '''
@@ -44,8 +44,8 @@ class RouteFeatures:
     @property
     def accessibility_score(self) -> float:
         score = (
-            0.4 * self.paved_ratio 
-            + 0.4 * self.sidewalk_ratio 
+            0.3 * self.paved_ratio 
+            + 0.3 * self.sidewalk_ratio 
             + 0.2 * self.lit_ratio 
             - 0.8 * self.steps_ratio
             - 0.5 * self.rough_surface_ratio
@@ -62,12 +62,14 @@ class RouteFeatures:
     @property
     def difficulty_score(self) -> float:
         incline_component = abs(self.avg_incline) if self.avg_incline else 0.0
-        
+        distance_component = min(self.length_m / 5000.0, 1.0)
+
         score = (
-            0.5 * self.steps_ratio
-            + 0.3 * incline_component
-            + 0.2 * self.trail_ratio
-            + 0.2 * self.rough_surface_ratio
+            0.45 * self.steps_ratio
+            + 0.35 * incline_component
+            + 0.40 * self.trail_ratio
+            + 0.30 * self.rough_surface_ratio
+            + 0.45 * distance_component
         )
         return min(1.0, score)
     
