@@ -32,36 +32,33 @@ class UserProfile:
         if self.avoid_steps and features.steps_ratio > 0:
             return False
         
-        # distance
-        if self.min_length_m is not None:
-            if features.length_m < self.min_length_m:
-                return False
-
-        if self.max_length_m is not None:
-            if features.length_m > self.max_length_m:
-                return False
-
-        # difficulty
-        if self.max_difficulty is not None:
-            if features.difficulty_score > self.max_difficulty:
-                return False
-        
-        # dog constraint
-        if self.bringing_dog:
-            if features.dog_friendly_ratio < 0.7:
-                return False
-        
         return True
+    
+    def difficulty_penalty(self, difficulty, max_difficulty):
+        if max_difficulty is None:
+            return 1.0
 
-    def score(self, features):
-        score = ( 
-            self.accessibility_weight * features.accessibility_score 
-            + self.urban_weight * features.urban_score 
-            + self.safety_weight * features.safety_score
-            - self.difficulty_weight * features.difficulty_score
+        if difficulty <= max_difficulty:
+            return 1.0
+
+        excess = difficulty - max_difficulty
+        return max(0.0, 1 - 2 * excess)
+
+    def score(self, route_features):
+        base_score = (
+            self.accessibility_weight * route_features.accessibility_score
+            + self.urban_weight * route_features.urban_score
+            + self.difficulty_weight * route_features.difficulty_score
+            + self.safety_weight * route_features.safety_score
         )
-        
-        return score
+
+        # Difficulty penalty
+        difficulty_factor = self.difficulty_penalty(
+            route_features.difficulty_score,
+            self.max_difficulty
+        )
+
+        return base_score * difficulty_factor
     
     def normalize_weights(self):
         total = (

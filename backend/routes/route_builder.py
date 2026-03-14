@@ -273,6 +273,8 @@ def _build_route_from_start(
     target_distance_m = (min_distance_m + max_distance_m) / 2
     edge_visit_counts: Dict[int, int] = {}
 
+    target_distance_m = random.uniform(min_distance_m, max_distance_m)
+
     for _ in range(max_steps):
         next_edge_id = _select_next_edge(
             adjacency.map.get(current_node_id, []),
@@ -294,7 +296,7 @@ def _build_route_from_start(
         distance_m += edge.distance_m
         current_node_id = edge.end_node
         node_ids.append(current_node_id)
-        if distance_m >= min_distance_m:
+        if distance_m >= target_distance_m:
             return Route(node_ids=node_ids, edge_ids=edge_ids, distance_m=distance_m)
     return None
 
@@ -330,9 +332,9 @@ def build_routes(
         min_distance_m = user_profile.min_length_m
         max_distance_m = user_profile.max_length_m
     if min_distance_m is None:
-        min_distance_m = 1000.0
+        min_distance_m = 500.0
     if max_distance_m is None:
-        max_distance_m = 2000.0
+        max_distance_m = 3000.0
     if min_distance_m <= 0:
         raise ValueError("min_distance_m must be positive")
     if max_distance_m <= 0:
@@ -503,9 +505,26 @@ def _route_name(
 def routes_to_geojson(routes: Sequence[Route],
                       nodes: Dict[int, Node],
                       route_scores: Optional[Dict[Tuple[int, ...], float]] = None,) -> dict:
+    from .feature_extraction import compute_route_features
+    
     features = []
     edges = load_edges()
     for index, route in enumerate(routes, start=1):
+        # extract feature information
+        route_features = compute_route_features(route, edges)
+        
+        difficulty = None
+        if route_features.difficulty_score <= 0.3:
+            difficulty = "easy"
+        elif route_features.difficulty_score <= 0.5:
+            difficulty = "moderate"
+        else:
+            difficulty = "hard"
+
+        pet_friendly = (route_features.dog_friendly_ratio >= 0.6)
+        accessible = (route_features.accessibility_score >= 0.5)
+        urban = (route_features.urban_score >= 0.6)
+
         coordinates = [
             [nodes[node_id].lon, nodes[node_id].lat] for node_id in route.node_ids
         ]
@@ -514,6 +533,10 @@ def routes_to_geojson(routes: Sequence[Route],
             "distance_m": route.distance_m,
             "edge_ids": list(route.edge_ids),
             "node_ids": list(route.node_ids),
+            "difficulty": difficulty,
+            "pet_friendly": pet_friendly,
+            "wheelchair_accessible": accessible,
+            "urban": urban,
         }
         if route_scores is not None:
             properties["tag_score"] = route_scores.get(tuple(route.edge_ids), 0.0)
@@ -570,7 +593,7 @@ def print_routes(routes: List[Route], nodes: Dict[int, Node], limit: int = 10) -
 
 PRESET_PARAMS = dict(
     # USER INFO
-    user_id="fitness_template", # Get tags and distance restrictions from user_id
+    user_id="Ada_Lovelace", # Get tags and distance restrictions from user_id
 
     # USER LOCATION (currently UCI campus)
     latitude=33.646117,
@@ -580,7 +603,7 @@ PRESET_PARAMS = dict(
     max_start_distance_m=250.0, # How far starting point can be from user location
     max_routes=1000000, # Number of routes to return (after scoring and/or time budget)
     max_attempts=1000000, # Upper bound on generation attempts (loop iterations trying random starts/routes)
-    max_steps=20000, # Max edges/hops per single route construction attempt before giving up.
+    max_steps=2000000, # Max edges/hops per single route construction attempt before giving up.
     time_budget_s=None,  # no time limit; generate until max_routes or max_attempts
 
     # Tag-based scoring parameters

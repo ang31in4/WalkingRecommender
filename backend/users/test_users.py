@@ -1,5 +1,5 @@
 from .user_profile import UserProfile
-from .manage_user_profiles import (make_table, insert_user_profile, load_user_profile)
+from .manage_user_profiles import (make_table, insert_user_profile, save_user_profile)
 
 # Preset Example Users
 
@@ -79,6 +79,23 @@ DOG_WALKER = UserProfile(
     safety_weight=1.4
 )
 
+LOOSE_USER = UserProfile(
+    user_id="Ada_Lovelace",
+    requires_wheelchair=False,
+    avoid_steps=False,
+
+    min_length_m=500.0,
+    max_length_m=5000.0,
+    max_difficulty=None,
+
+    bringing_dog=False,
+
+    accessibility_weight=0.2,
+    urban_weight=0.6,
+    difficulty_weight=0.6,
+    safety_weight=1.0
+)
+
 def initialize_test_users():
     make_table()
     insert_user_profile(CASUAL_WALKER)
@@ -87,4 +104,5 @@ def initialize_test_users():
     insert_user_profile(DOG_WALKER)
 
 if __name__ == "__main__":
-    initialize_test_users()
+    #initialize_test_users()
+    save_user_profile(LOOSE_USER)
