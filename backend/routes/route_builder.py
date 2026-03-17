@@ -523,7 +523,7 @@ def routes_to_geojson(routes: Sequence[Route],
 
         pet_friendly = (route_features.dog_friendly_ratio >= 0.6)
         accessible = (route_features.accessibility_score >= 0.5)
-        urban = (route_features.urban_score >= 0.6)
+        urban = (route_features.urban_score >= 0.5)
 
         coordinates = [
             [nodes[node_id].lon, nodes[node_id].lat] for node_id in route.node_ids
@@ -537,6 +537,10 @@ def routes_to_geojson(routes: Sequence[Route],
             "pet_friendly": pet_friendly,
             "wheelchair_accessible": accessible,
             "urban": urban,
+            "u_score": route_features.urban_score,
+            "a_score": route_features.accessibility_score,
+            "d_score": route_features.difficulty_score,
+            "s_score": route_features.safety_score,
         }
         if route_scores is not None:
             properties["tag_score"] = route_scores.get(tuple(route.edge_ids), 0.0)
