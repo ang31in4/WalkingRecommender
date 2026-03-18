@@ -1,5 +1,18 @@
-from .user_profile import UserProfile
-from .manage_user_profiles import (make_table, insert_user_profile, save_user_profile)
+import os
+import sys
+
+# Allow running this file directly in PyCharm ("Run") by ensuring the repo root
+# is on PYTHONPATH (so `import backend...` works).
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from backend.users.user_profile import UserProfile
+from backend.users.manage_user_profiles import (
+    make_table,
+    insert_user_profile,
+    save_user_profile,
+)
 
 # Preset Example Users
 

@@ -82,6 +82,5 @@ struct InputView: View {
                 .padding(.top, 8)
             }
         }
-        .padding()
     }
 }
