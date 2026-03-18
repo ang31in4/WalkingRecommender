@@ -31,7 +31,7 @@ struct HomeView: View {
                     .frame(height: headerH)
                     .overlay(alignment: .bottom) {
                         HStack(alignment: .center) {
-                            // Constrain InputView so its dropdown/overlays can't intercept route scrolling.
+                            // Allow InputView to grow so autocomplete appears below the text field.
                             InputView(locationSearch: locationSearch)
                                 .frame(height: 44)
                             FilterButtonView(filterViewModel: filterViewModel)
@@ -39,8 +39,8 @@ struct HomeView: View {
                         }
                         .padding(20)
                     }
-                    .clipped()
-                    .zIndex(0)
+                    // Keep the weather/input overlay above the route list.
+                    .zIndex(2)
                 
                 RouteCard_AllCategories(
                     filterViewModel: filterViewModel,
@@ -56,6 +56,7 @@ struct HomeView: View {
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
         }
+        .ignoresSafeArea(.keyboard)
         .safeAreaInset(edge: .bottom) {
             HStack {
                 Spacer()

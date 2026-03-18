@@ -54,7 +54,6 @@ struct WeatherView: View {
                 WeatherInfoView(locationSearch: locationSearch).padding(20)
             }
             .frame(width: cardWidth, height: cardHeight, alignment: .topLeading)
-            .clipped()
         }
         .frame(height: UIScreen.main.bounds.width / 2.25)
     }
