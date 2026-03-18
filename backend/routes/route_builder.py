@@ -650,11 +650,11 @@ if __name__ == "__main__":
         print(f"Wrote {len(scored_routes)} scored routes to {out_path}")
 
     # Top-n for preview / print
-    top_n = 1  # !! test actual look of a route
+    top_n = 200  # !! test actual look of a route
     top_scored_routes = scored_routes[:top_n]
     top_routes = [route for route, _ in top_scored_routes]
     route_scores = {tuple(route.edge_ids): score for route, score in top_scored_routes}
     write_routes_geojson(top_routes, route_scores=route_scores)
 
-    nodes = load_nodes()
-    print_routes(top_routes, nodes, limit=top_n)
+    #nodes = load_nodes()
+    #print_routes(top_routes, nodes, limit=top_n)

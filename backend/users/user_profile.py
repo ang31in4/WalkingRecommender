@@ -5,6 +5,11 @@ from ..routes.route_features import RouteFeatures
 class UserProfile:
     user_id: str
 
+    # step count data
+    current_steps: int
+    step_goal: int | None
+    step_length_m: int
+
     # hard constraints
     requires_wheelchair: bool
     avoid_steps: bool
@@ -20,6 +25,7 @@ class UserProfile:
     urban_weight: float
     difficulty_weight: float
     safety_weight:  float
+    step_goal_weight: float | None
 
     def allowed(self, features:RouteFeatures):
         # mobility
@@ -44,6 +50,16 @@ class UserProfile:
         excess = difficulty - max_difficulty
         return max(0.0, 1 - 2 * excess)
 
+    def step_goal_factor(self, route_distance, remaining_distance):
+        if remaining_distance <= 0:
+            return 0.5
+
+        if route_distance >= remaining_distance:
+            return 1.0  # strong reward for finishing goal
+
+        # otherwise prefer closer matches
+        return route_distance / remaining_distance
+    
     def score(self, route_features):
         base_score = (
             self.accessibility_weight * route_features.accessibility_score
@@ -58,7 +74,14 @@ class UserProfile:
             self.max_difficulty
         )
 
-        return base_score * difficulty_factor
+        # Step goal factor
+        step_factor = 0.0
+        if self.step_goal:
+            remaining_steps = max(0, self.step_goal - self.current_steps)
+            remaining_distance = remaining_steps * self.step_length_m
+            step_factor = self.step_goal_factor(route_features.length_m, remaining_distance)
+
+        return base_score * difficulty_factor * (1 + self.step_goal_weight * step_factor)
     
     def normalize_weights(self):
         total = (
