@@ -549,6 +549,12 @@ def routes_to_geojson(
             "pet_friendly": pet_friendly,
             "wheelchair_accessible": accessible,
             "urban": urban,
+            # Precomputed feature scores for downstream user-feedback learning.
+            # iOS can send these back when a route is selected.
+            "u_score": route_features.urban_score,
+            "a_score": route_features.accessibility_score,
+            "d_score": route_features.difficulty_score,
+            "s_score": route_features.safety_score,
         }
 
         if not slim:

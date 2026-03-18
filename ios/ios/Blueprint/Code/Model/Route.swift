@@ -11,6 +11,10 @@ struct Route: Identifiable, Decodable {
     let petFriendly: Bool?
     let wheelchairAccessible: Bool?
     let urban: Bool?
+    let accessibilityScore: Double?
+    let urbanScore: Double?
+    let difficultyScore: Double?
+    let safetyScore: Double?
 
     enum CodingKeys: String, CodingKey {
         case geometry
@@ -30,6 +34,10 @@ struct Route: Identifiable, Decodable {
         case wheelchair_accessible = "wheelchair_accessible"
         case urban = "urban"
         case difficulty = "difficulty"
+        case a_score = "a_score"
+        case u_score = "u_score"
+        case d_score = "d_score"
+        case s_score = "s_score"
     }
 
     init(from decoder: Decoder) throws {
@@ -55,6 +63,10 @@ struct Route: Identifiable, Decodable {
         self.petFriendly = try propertiesContainer.decodeIfPresent(Bool.self, forKey: .pet_friendly)
         self.wheelchairAccessible = try propertiesContainer.decodeIfPresent(Bool.self, forKey: .wheelchair_accessible)
         self.urban = try propertiesContainer.decodeIfPresent(Bool.self, forKey: .urban)
+        self.accessibilityScore = try propertiesContainer.decodeIfPresent(Double.self, forKey: .a_score)
+        self.urbanScore = try propertiesContainer.decodeIfPresent(Double.self, forKey: .u_score)
+        self.difficultyScore = try propertiesContainer.decodeIfPresent(Double.self, forKey: .d_score)
+        self.safetyScore = try propertiesContainer.decodeIfPresent(Double.self, forKey: .s_score)
         self.id = UUID().uuidString
     }
 
@@ -67,7 +79,11 @@ struct Route: Identifiable, Decodable {
         length: Double,
         petFriendly: Bool? = nil,
         wheelchairAccessible: Bool? = nil,
-        urban: Bool? = nil
+        urban: Bool? = nil,
+        accessibilityScore: Double? = nil,
+        urbanScore: Double? = nil,
+        difficultyScore: Double? = nil,
+        safetyScore: Double? = nil
     ) {
         self.id = id
         self.name = name
@@ -77,6 +93,10 @@ struct Route: Identifiable, Decodable {
         self.petFriendly = petFriendly
         self.wheelchairAccessible = wheelchairAccessible
         self.urban = urban
+        self.accessibilityScore = accessibilityScore
+        self.urbanScore = urbanScore
+        self.difficultyScore = difficultyScore
+        self.safetyScore = safetyScore
     }
 
     /// Sample route for previews (e.g. MapView without backend).

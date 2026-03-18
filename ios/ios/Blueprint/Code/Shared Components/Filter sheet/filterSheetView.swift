@@ -63,7 +63,7 @@ struct FilterSheetView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Distances")
+                        Text("Length")
                             .font(.headline)
                             .fontWeight(.bold)
                         ForEach(DistanceRange.allCases, id: \.self) { distance in

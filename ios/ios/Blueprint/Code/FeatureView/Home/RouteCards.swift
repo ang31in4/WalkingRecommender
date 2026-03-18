@@ -10,22 +10,39 @@ private struct RoutesScrollOffsetKey: PreferenceKey {
 
 struct RouteCard: View {
     let route: Route
+    let userLocation: CLLocation
 
     var body: some View {
+        let distanceMiles: Double? = {
+            guard let meters = route.distanceFromStart(from: userLocation) else { return nil }
+            return meters / 1609.34
+        }()
+
         VStack(alignment: .leading, spacing: 8) {
             Text(route.name)
                 .font(.headline)
-                .foregroundColor(.primary)
-            Text(String(format: "%.0f mi", route.length))
+                .foregroundColor(.black)
+
+            Text("Length: \(String(format: "%.2f", route.length)) mi")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(.gray)
+
+            if let distanceMiles {
+                Text("Distance: \(String(format: "%.2f", distanceMiles)) mi")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .frame(height: 100)
-        .background(Color.blue.opacity(0.3))
-        .cornerRadius(10)
-        .shadow(color: Color.black.opacity(0.1), radius: 5)
+        .background(Color.white)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.black.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
     }
 }
 
@@ -72,14 +89,6 @@ struct RouteCard_AllCategories: View {
                                 .font(.title2)
                                 .fontWeight(.semibold)
                             Spacer()
-                            Button("Scroll to bottom") {
-                                print("[RouteCards] scrollToBottom tapped")
-                                guard let last = displayedRoutes.last else { return }
-                                withAnimation(.easeOut(duration: 0.25)) {
-                                    proxy.scrollTo(last.id, anchor: .bottom)
-                                }
-                            }
-                            .font(.caption)
                         }
 
                         ScrollView(.vertical, showsIndicators: true) {
@@ -93,7 +102,13 @@ struct RouteCard_AllCategories: View {
                                 .frame(height: 0)
 
                                 ForEach(displayedRoutes) { route in
-                                    RouteCard(route: route)
+                                    RouteCard(
+                                        route: route,
+                                        userLocation: CLLocation(
+                                            latitude: locationSearch.activeLocation.latitude,
+                                            longitude: locationSearch.activeLocation.longitude
+                                        )
+                                    )
                                         .id(route.id)
                                         .frame(maxWidth: .infinity)
                                         .contentShape(Rectangle())
@@ -122,7 +137,11 @@ struct RouteCard_AllCategories: View {
             }
 
             if isWeatherSuggestionPresented, let loc = suggestionLocation {
-                WeatherSuggestionPanel(location: loc, filter: filterViewModel.currentFilter)
+                WeatherSuggestionPanel(
+                    location: loc,
+                    locationName: locationSearch.locationDisplayName,
+                    filter: filterViewModel.currentFilter
+                )
                     .transition(.opacity.combined(with: .scale))
                     .zIndex(10)
             }
