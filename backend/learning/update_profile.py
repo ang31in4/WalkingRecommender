@@ -5,28 +5,25 @@ from ..users.user_profile import UserProfile
 from ..routes.route_features import RouteFeatures
 from ..sessions.search_filters import SearchFilters
 
-# Updates a user's weights based on the chosen route relative to other routes  
-def update_profile_from_routes(user:UserProfile, 
-                              chosen:RouteFeatures,
-                              shown:list[RouteFeatures]) -> UserProfile:
+# Updates a user's weights based on the chosen route 
+def update_profile_from_route_scores(user: UserProfile,
+                                     accessibility: float,
+                                     urban: float,
+                                     difficulty: float,
+                                     safety: float) -> UserProfile:
     alpha = 0.5
-    
-    mean_features = {
-        "urban": sum(r.urban_score for r in shown) / len(shown),
-        "accessibility": sum(r.accessibility_score for r in shown) / len(shown),
-        "difficulty": sum(r.difficulty_score for r in shown) / len(shown),
-        "safety": sum(r.safety_score for r in shown) / len(shown)
-    }
 
+    # Compute differences vs current user preferences
     differences = {
-        "urban": chosen.urban_score - mean_features["urban"],
-        "accessibility": chosen.accessibility_score - mean_features["accessibility"],
-        "difficulty": chosen.difficulty_score - mean_features["difficulty"],
-        "safety": chosen.safety_score - mean_features["safety"]
+        "accessibility": accessibility - user.accessibility_weight,
+        "urban": urban - user.urban_weight,
+        "difficulty": difficulty - user.difficulty_weight,
+        "safety": safety - user.safety_weight
     }
 
-    user.urban_weight += alpha * differences["urban"]
+    # Update weights
     user.accessibility_weight += alpha * differences["accessibility"]
+    user.urban_weight += alpha * differences["urban"]
     user.difficulty_weight += alpha * differences["difficulty"]
     user.safety_weight += alpha * differences["safety"]
 
