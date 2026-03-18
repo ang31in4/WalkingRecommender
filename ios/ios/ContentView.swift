@@ -38,7 +38,6 @@ struct HomeView: View {
                                 .font(.caption)
                         }
                         .padding(20)
-                        .clipped()
                     }
                     .clipped()
                     .zIndex(0)

@@ -26,7 +26,7 @@ enum APIEndpoints {
     var method: HttpMethod {
         switch self {
         case .login: return .POST
-        case .getRoutes: return .GET
+        case .getRoutes: return .POST
         case .postRouteSelected: return .POST
         }
     }

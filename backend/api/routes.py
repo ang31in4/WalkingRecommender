@@ -84,17 +84,26 @@ def get_routes():
         return jsonify({"error": "Latitude and longitude are required"}), 400
 
     try:
+        max_routes = _parse_int(data.get("max_routes"), 60)
         params = {
             "latitude": float(latitude),
             "longitude": float(longitude),
             "user_id": user_id,
+            "max_routes": max_routes,
         }
 
         scored_routes = build_routes(**params, return_scores=True)
         routes = [route for route, _ in scored_routes]
         route_scores = {tuple(route.edge_ids): score for route, score in scored_routes}
 
-        geojson = routes_to_geojson(routes, load_nodes(), route_scores=route_scores)
+        # iOS client has a small max response size; keep the GeoJSON lightweight.
+        geojson = routes_to_geojson(
+            routes,
+            load_nodes(),
+            route_scores=route_scores,
+            slim=True,
+            coord_stride=2,
+        )
 
         return jsonify(geojson), 200
 

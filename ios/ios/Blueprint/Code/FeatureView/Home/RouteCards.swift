@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import CoreLocation
 internal import _LocationEssentials
 
 private struct RoutesScrollOffsetKey: PreferenceKey {
@@ -37,6 +38,8 @@ struct RouteCard_AllCategories: View {
     @State private var isLoading = true
     @State private var isLoadingSupplement = false
     @State private var lastScrollOffset: CGFloat = .nan
+    @State private var isWeatherSuggestionPresented = false
+    @State private var suggestionLocation: CLLocationCoordinate2D? = nil
 
     /// Routes to display: from RouteViewModel (filtered when user taps "Show"), so filter sheet applies via applyFilter.
     private var displayedRoutes: [Route] {
@@ -49,76 +52,89 @@ struct RouteCard_AllCategories: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if isLoading {
-                ProgressView("Loading routes…")
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-            } else if isLoadingSupplement {
-                ProgressView("Fetching more routes…")
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-            } else if displayedRoutes.isEmpty {
-                Text(routeViewModel.allRoutes.isEmpty ? "No routes available for this location. Try UCI area or adjust filters." : "No routes match your filters")
-                    .foregroundColor(.secondary)
-            } else {
-                ScrollViewReader { proxy in
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Suggested for you")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        Spacer()
-                        Button("Scroll to bottom") {
-                            print("[RouteCards] scrollToBottom tapped")
-                            guard let last = displayedRoutes.last else { return }
-                            withAnimation(.easeOut(duration: 0.25)) {
-                                proxy.scrollTo(last.id, anchor: .bottom)
+        ZStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 16) {
+                if isLoading {
+                    ProgressView("Loading routes…")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding()
+                } else if isLoadingSupplement {
+                    ProgressView("Fetching more routes…")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding()
+                } else if displayedRoutes.isEmpty {
+                    Text(routeViewModel.allRoutes.isEmpty ? "No routes available for this location. Try UCI area or adjust filters." : "No routes match your filters")
+                        .foregroundColor(.secondary)
+                } else {
+                    ScrollViewReader { proxy in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("Suggested for you")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                            Spacer()
+                            Button("Scroll to bottom") {
+                                print("[RouteCards] scrollToBottom tapped")
+                                guard let last = displayedRoutes.last else { return }
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    proxy.scrollTo(last.id, anchor: .bottom)
+                                }
                             }
+                            .font(.caption)
                         }
-                        .font(.caption)
-                    }
 
-                    ScrollView(.vertical, showsIndicators: true) {
-                        LazyVStack(spacing: 12) {
-                            GeometryReader { g in
-                                Color.clear.preference(
-                                    key: RoutesScrollOffsetKey.self,
-                                    value: g.frame(in: .named("routesScroll")).minY
-                                )
-                            }
-                            .frame(height: 0)
+                        ScrollView(.vertical, showsIndicators: true) {
+                            LazyVStack(spacing: 12) {
+                                GeometryReader { g in
+                                    Color.clear.preference(
+                                        key: RoutesScrollOffsetKey.self,
+                                        value: g.frame(in: .named("routesScroll")).minY
+                                    )
+                                }
+                                .frame(height: 0)
 
-                            ForEach(displayedRoutes) { route in
-                                RouteCard(route: route)
-                                    .id(route.id)
-                                    .frame(maxWidth: .infinity)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { onRouteSelected?(route) }
+                                ForEach(displayedRoutes) { route in
+                                    RouteCard(route: route)
+                                        .id(route.id)
+                                        .frame(maxWidth: .infinity)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { onRouteSelected?(route) }
+                                }
                             }
+                            .padding(.vertical, 4)
                         }
-                        .padding(.vertical, 4)
-                    }
-                    .coordinateSpace(name: "routesScroll")
-                    .layoutPriority(1)
-                    .frame(minHeight: 0, maxHeight: .infinity)
-                    .onAppear { print("[RouteCards] Showing \(displayedRoutes.count) routes in scroll view") }
-                    .onPreferenceChange(RoutesScrollOffsetKey.self) { offset in
-                        if lastScrollOffset.isNaN {
-                            lastScrollOffset = offset
-                            print("[RouteCards] initial scroll offset \(offset)")
-                            return
-                        }
-                        if abs(offset - lastScrollOffset) >= 2 {
-                            print("[RouteCards] scroll offset \(offset)")
-                            lastScrollOffset = offset
+                        .coordinateSpace(name: "routesScroll")
+                        .layoutPriority(1)
+                        .frame(minHeight: 0, maxHeight: .infinity)
+                        .onAppear { print("[RouteCards] Showing \(displayedRoutes.count) routes in scroll view") }
+                        .onPreferenceChange(RoutesScrollOffsetKey.self) { offset in
+                            if lastScrollOffset.isNaN {
+                                lastScrollOffset = offset
+                                print("[RouteCards] initial scroll offset \(offset)")
+                                return
+                            }
+                            if abs(offset - lastScrollOffset) >= 2 {
+                                print("[RouteCards] scroll offset \(offset)")
+                                lastScrollOffset = offset
+                            }
                         }
                     }
                 }
+            }
+
+            if isWeatherSuggestionPresented, let loc = suggestionLocation {
+                WeatherSuggestionPanel(location: loc, filter: filterViewModel.currentFilter)
+                    .transition(.opacity.combined(with: .scale))
+                    .zIndex(10)
             }
         }
         .frame(minHeight: 0, maxHeight: .infinity)
         .task(id: "\(locationSearch.activeLocation.latitude)-\(locationSearch.activeLocation.longitude)") {
             let (lat, lon) = locationSearch.routeParams()
+            let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+            await MainActor.run {
+                suggestionLocation = coord
+                isWeatherSuggestionPresented = true
+            }
             let fromAPI = await loadGeoJsonFromAPI(
                 latitude: lat,
                 longitude: lon,
@@ -127,6 +143,9 @@ struct RouteCard_AllCategories: View {
             routeViewModel.allRoutes = fromAPI
             routeViewModel.applyFilter(filterViewModel.currentFilter)
             isLoading = false
+            await MainActor.run {
+                isWeatherSuggestionPresented = false
+            }
             print("[RouteCards] Routes loaded: \(fromAPI.count) from API")
             
 //            originalRoutes = routes

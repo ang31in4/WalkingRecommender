@@ -502,13 +502,19 @@ def _route_name(
 
     return f"Route {index} ({distance_miles:.2f} mi)"
 
-def routes_to_geojson(routes: Sequence[Route],
-                      nodes: Dict[int, Node],
-                      route_scores: Optional[Dict[Tuple[int, ...], float]] = None,) -> dict:
+def routes_to_geojson(
+    routes: Sequence[Route],
+    nodes: Dict[int, Node],
+    route_scores: Optional[Dict[Tuple[int, ...], float]] = None,
+    slim: bool = False,
+    coord_stride: int = 1,
+) -> dict:
     from .feature_extraction import compute_route_features
     
     features = []
     edges = load_edges()
+    coord_stride = max(1, int(coord_stride))
+
     for index, route in enumerate(routes, start=1):
         # extract feature information
         route_features = compute_route_features(route, edges)
@@ -525,25 +531,40 @@ def routes_to_geojson(routes: Sequence[Route],
         accessible = (route_features.accessibility_score >= 0.5)
         urban = (route_features.urban_score >= 0.5)
 
-        coordinates = [
-            [nodes[node_id].lon, nodes[node_id].lat] for node_id in route.node_ids
-        ]
+        node_ids = list(route.node_ids)
+        if coord_stride > 1 and len(node_ids) > 2:
+            sampled = node_ids[::coord_stride]
+            if len(sampled) >= 2:
+                node_ids = sampled
+
+        coordinates = [[nodes[node_id].lon, nodes[node_id].lat] for node_id in node_ids]
+
+        # Payload minimization: the iOS client only needs geometry + a few properties.
+        # Large arrays like `edge_ids`/`node_ids` and per-route score fields can easily
+        # blow up the JSON response size.
         properties = {
             "name": _route_name(route, index, edges),
-            "distance_m": route.distance_m,
-            "edge_ids": list(route.edge_ids),
-            "node_ids": list(route.node_ids),
+            "length_mi": route.distance_m / MILES_TO_METERS,
             "difficulty": difficulty,
             "pet_friendly": pet_friendly,
             "wheelchair_accessible": accessible,
             "urban": urban,
-            "u_score": route_features.urban_score,
-            "a_score": route_features.accessibility_score,
-            "d_score": route_features.difficulty_score,
-            "s_score": route_features.safety_score,
         }
-        if route_scores is not None:
-            properties["tag_score"] = route_scores.get(tuple(route.edge_ids), 0.0)
+
+        if not slim:
+            properties.update(
+                {
+                    "distance_m": route.distance_m,
+                    "edge_ids": list(route.edge_ids),
+                    "node_ids": list(route.node_ids),
+                    "u_score": route_features.urban_score,
+                    "a_score": route_features.accessibility_score,
+                    "d_score": route_features.difficulty_score,
+                    "s_score": route_features.safety_score,
+                }
+            )
+            if route_scores is not None:
+                properties["tag_score"] = route_scores.get(tuple(route.edge_ids), 0.0)
 
         features.append(
             {

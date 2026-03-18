@@ -100,13 +100,15 @@ final class RouteMapViewDelegate: NSObject, MKMapViewDelegate {
 }
 
 struct RouteMapView: UIViewRepresentable {
+    typealias UIViewType = MKMapView
+
     let route: Route
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
 
-    func makeUIView(context: Context) -> MKMapView {
+    func makeUIView(context: UIViewRepresentableContext<RouteMapView>) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
 
@@ -121,7 +123,7 @@ struct RouteMapView: UIViewRepresentable {
         return mapView
     }
 
-    func updateUIView(_ mapView: MKMapView, context: Context) {
+    func updateUIView(_ mapView: MKMapView, context: UIViewRepresentableContext<RouteMapView>) {
         mapView.removeOverlays(mapView.overlays)
         let polyline = route.asPolyline()
         mapView.addOverlay(polyline)
