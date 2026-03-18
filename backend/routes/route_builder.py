@@ -246,12 +246,57 @@ def _select_next_edge(
 
     return random.choices(viable_edges, weights=weights, k=1)[0]
 
-def _route_edge_overlap_ratio(candidate_edge_ids: Sequence[int], existing_edge_set: Set[int]) -> float:
-    if not candidate_edge_ids:
+def _edge_set_distance_m(edge_ids: Iterable[int], edges: Dict[int, Edge]) -> float:
+    unique_edge_ids = set(edge_ids)
+    return sum(edges[edge_id].distance_m for edge_id in unique_edge_ids)
+
+
+def _route_edge_overlap_ratio(
+    candidate_edge_ids: Sequence[int],
+    existing_edge_set: Set[int],
+    edges: Dict[int, Edge],
+) -> float:
+    candidate_edge_set = set(candidate_edge_ids)
+    if not candidate_edge_set:
+        return 0.0
+    
+    candidate_distance_m = _edge_set_distance_m(candidate_edge_set, edges)
+    if candidate_distance_m <= 0:
         return 0.0
 
-    overlap_count = sum(1 for edge_id in candidate_edge_ids if edge_id in existing_edge_set)
-    return overlap_count / len(candidate_edge_ids)
+    overlapping_edge_ids = candidate_edge_set.intersection(existing_edge_set)
+    overlapping_distance_m = _edge_set_distance_m(overlapping_edge_ids, edges)
+    return overlapping_distance_m / candidate_distance_m
+
+
+def _select_diverse_top_routes(
+    scored_routes: Sequence[Tuple[Route, float]],
+    edges: Dict[int, Edge],
+    max_routes: int,
+    route_similarity_threshold: float,
+) -> List[Tuple[Route, float]]:
+    if max_routes <= 0:
+        return []
+
+    if route_similarity_threshold >= 1.0:
+        return list(scored_routes[:max_routes])
+
+    selected_scored_routes: List[Tuple[Route, float]] = []
+    selected_edge_sets: List[Set[int]] = []
+    for route, score in scored_routes:
+        route_edge_set = set(route.edge_ids)
+        if any(
+            _route_edge_overlap_ratio(route.edge_ids, existing_edge_set, edges)
+            >= route_similarity_threshold
+            for existing_edge_set in selected_edge_sets
+        ):
+            continue
+        selected_scored_routes.append((route, score))
+        selected_edge_sets.append(route_edge_set)
+        if len(selected_scored_routes) >= max_routes:
+            break
+
+    return selected_scored_routes
 
 def _build_route_from_start(
     start_node_id: int,
@@ -371,14 +416,15 @@ def build_routes(
     scored_route_edge_sets: Dict[Tuple[int, ...], Set[int]] = {}
     heap_counter = 0
     candidate_route_limit = max_routes
-    if user_profile is not None and max_routes > 0:
+    if (user_profile is not None or normalized_score_tags) and max_routes > 0:
         candidate_route_limit = min(max(max_routes * 10, 100), 5000)
+    generated_route_limit = candidate_route_limit if user_profile is not None else max_routes
     attempts = 0
     start_time = time.monotonic()
     while attempts < max_attempts:
         if time_budget_s is not None and (time.monotonic() - start_time) >= time_budget_s:
             break
-        if time_budget_s is None and len(routes) >= max_routes:
+        if time_budget_s is None and len(routes) >= generated_route_limit:
             break
 
         attempts += 1
@@ -406,7 +452,7 @@ def build_routes(
 
                 route_edge_set = set(route.edge_ids)
                 if route_similarity_threshold < 1.0 and any(
-                    _route_edge_overlap_ratio(route.edge_ids, existing_edge_set)
+                    _route_edge_overlap_ratio(route.edge_ids, existing_edge_set, edges)
                     >= route_similarity_threshold
                     for existing_edge_set in scored_route_edge_sets.values()
                 ):
@@ -453,15 +499,31 @@ def build_routes(
             user_profile=user_profile,
             edges=edges,
         )
-        final_routes = [route for route, _ in profile_scored_routes[:max_routes]]
+        selected_scored_routes = _select_diverse_top_routes(
+            profile_scored_routes,
+            edges=edges,
+            max_routes=max_routes,
+            route_similarity_threshold=route_similarity_threshold,
+        )
+        final_routes = [route for route, _ in selected_scored_routes]
+        scored_routes = selected_scored_routes
+    elif normalized_score_tags:
+        tag_scored_routes = score_routes_for_tag(
+            candidate_routes,
+            tag=normalized_score_tags,
+            edges=edges,
+        )
+        selected_scored_routes = _select_diverse_top_routes(
+            tag_scored_routes,
+            edges=edges,
+            max_routes=max_routes,
+            route_similarity_threshold=route_similarity_threshold,
+        )
+        final_routes = [route for route, _ in selected_scored_routes]
+        scored_routes = selected_scored_routes
     else:
         final_routes = candidate_routes[:max_routes]
-
-    scored_routes = (
-        score_routes_for_tag(final_routes, tag=normalized_score_tags, edges=edges)
-        if normalized_score_tags
-        else [(route, 0.0) for route in final_routes]
-    )
+        scored_routes = [(route, 0.0) for route in final_routes]
 
     if return_scores:
         return scored_routes
