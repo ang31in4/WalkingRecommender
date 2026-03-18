@@ -78,10 +78,10 @@ def post_route_selected():
         return jsonify({"success": False, "error": "user_id is required"}), 400
 
     # Scores come from the client (0..1). Missing values default to 0 in DB insert.
-    accessibility_score = data.get("accessibility_score")
-    urban_score = data.get("urban_score")
-    difficulty_score = data.get("difficulty_score")
-    safety_score = data.get("safety_score")
+    accessibility_score = data.get("a_score")
+    urban_score = data.get("u_score")
+    difficulty_score = data.get("d_score")
+    safety_score = data.get("s_score")
 
     conn = session_conn()
     make_session_table(conn)
@@ -118,6 +118,7 @@ def post_route_selected():
     insert_selected_route(
         conn,
         interaction_id,
+        user_id,
         accessibility_score=accessibility_score,
         urban_score=urban_score,
         difficulty_score=difficulty_score,

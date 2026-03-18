@@ -1,6 +1,7 @@
 import sqlite3
 from pathlib import Path
 from .session import SearchSession
+from ..learning.update_profile import update_user_table
 from .search_filters import SearchFilters
 from typing import Optional
 
@@ -135,6 +136,7 @@ def insert_filters(conn, interaction_id, filters:SearchFilters):
 def insert_selected_route(
     conn,
     interaction_id: int,
+    user_id: str,
     accessibility_score: Optional[float] = None,
     urban_score: Optional[float] = None,
     difficulty_score: Optional[float] = None,
@@ -165,3 +167,13 @@ def insert_selected_route(
             float(safety_score) if safety_score is not None else 0.0,
         ),
     )
+
+    if (accessibility_score or urban_score or difficulty_score or safety_score):
+        try:
+            update_user_table(user_id, 
+                              accessibility_score, 
+                              urban_score, 
+                              difficulty_score, 
+                              safety_score)
+        except Exception as e:
+            print("User update failed:", e)
