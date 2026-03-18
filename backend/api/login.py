@@ -3,6 +3,9 @@ from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+from backend.routes.route_features import RouteFeatures
+from backend.routes.route_features import RouteFeatures
+from backend.routes.route_features import RouteFeatures
 from backend.users.manage_user_profiles import load_user_profile, make_connection
 from backend.sessions.session import SearchSession
 from backend.sessions.session_tables import (
@@ -77,6 +80,12 @@ def post_route_selected():
     if not user_id:
         return jsonify({"success": False, "error": "user_id is required"}), 400
 
+    # Scores come from the client (0..1). Missing values default to 0 in DB insert.
+    accessibility_score = data.get("accessibility_score")
+    urban_score = data.get("urban_score")
+    difficulty_score = data.get("difficulty_score")
+    safety_score = data.get("safety_score")
+
     conn = session_conn()
     make_session_table(conn)
     make_interaction_table(conn)
@@ -107,9 +116,17 @@ def post_route_selected():
         )
         session_id = insert_session(conn, session)
 
+    route_features = RouteFeatures(
+        accessibility_score=accessibility_score,
+        urban_score=urban_score,
+        difficulty_score=difficulty_score,
+        safety_score=safety_score,
+        # Add other required fields if RouteFeatures needs them
+    )
+
     now = datetime.utcnow()
     interaction_id = insert_interaction(conn, session_id, now, "route_selected")
-    insert_selected_route(conn, interaction_id, None)
+    insert_selected_route(conn, interaction_id, route_features)
     conn.commit()
     conn.close()
 

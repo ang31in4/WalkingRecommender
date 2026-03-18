@@ -2,7 +2,7 @@ import sqlite3
 from pathlib import Path
 from .session import SearchSession
 from .search_filters import SearchFilters
-from ..routes.route_features import RouteFeatures
+from typing import Optional
 
 DATA_INGESTION_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = DATA_INGESTION_DIR / "sessions"
@@ -132,40 +132,36 @@ def insert_filters(conn, interaction_id, filters:SearchFilters):
                 )
             )
 
-def insert_selected_route(conn, interaction_id: int, route: RouteFeatures | None = None) -> None:
-    """Insert one row into session_route_selected. If route is None, scores are 0."""
+def insert_selected_route(
+    conn,
+    interaction_id: int,
+    accessibility_score: Optional[float] = None,
+    urban_score: Optional[float] = None,
+    difficulty_score: Optional[float] = None,
+    safety_score: Optional[float] = None,
+) -> None:
+    """Insert one row into session_route_selected.
+
+    The iOS client sends precomputed scores (0..1). If any value is missing,
+    it defaults to 0.0.
+    """
     cur = conn.cursor()
-    if route is None:
-        cur.execute(
-            """
-            INSERT INTO session_route_selected (
-                interaction_id,
-                accessibility_score,
-                urban_score,
-                difficulty_score,
-                safety_score
-            )
-            VALUES (?, 0, 0, 0, 0);
-            """,
-            (interaction_id,),
+    cur.execute(
+        """
+        INSERT INTO session_route_selected (
+            interaction_id,
+            accessibility_score,
+            urban_score,
+            difficulty_score,
+            safety_score
         )
-    else:
-        cur.execute(
-            """
-            INSERT INTO session_route_selected (
-                interaction_id,
-                accessibility_score,
-                urban_score,
-                difficulty_score,
-                safety_score
-            )
-            VALUES (?, ?, ?, ?, ?);
-            """,
-            (
-                interaction_id,
-                route.accessibility_score,
-                route.urban_score,
-                route.difficulty_score,
-                route.safety_score,
-            ),
-        )
+        VALUES (?, ?, ?, ?, ?);
+        """,
+        (
+            interaction_id,
+            float(accessibility_score) if accessibility_score is not None else 0.0,
+            float(urban_score) if urban_score is not None else 0.0,
+            float(difficulty_score) if difficulty_score is not None else 0.0,
+            float(safety_score) if safety_score is not None else 0.0,
+        ),
+    )
