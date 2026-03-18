@@ -21,6 +21,10 @@ def make_table():
                 CREATE TABLE IF NOT EXISTS users (
                 user_id TEXT PRIMARY KEY,
 
+                current_steps INTEGER,
+                step_goal INTEGER,
+                step_length_m INTEGER,
+
                 requires_wheelchair INTEGER,
                 avoid_steps INTEGER,
                 
@@ -33,7 +37,8 @@ def make_table():
                 accessibility_weight REAL,
                 urban_weight REAL,
                 difficulty_weight REAL,
-                safety_weight REAL
+                safety_weight REAL,
+                step_goal_weight REAL
                 ); """)
 
     conn.commit()
@@ -46,31 +51,49 @@ def insert_user_profile(user:UserProfile):
     cur.execute("""
                 INSERT INTO users (
                     user_id,
+                
+                    current_steps,
+                    step_goal,
+                    step_length_m,
+                
                     requires_wheelchair,
                     avoid_steps,
+                
                     min_length_m,
                     max_length_m,
                     max_difficulty,
+                
                     bringing_dog,
+                
                     accessibility_weight,
                     urban_weight,
                     difficulty_weight,
-                    safety_weight
+                    safety_weight,
+                    step_goal_weight
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     user.user_id,
+
+                    user.current_steps,
+                    user.step_goal if user.step_goal is not None else 0,
+                    user.step_length_m,
+
                     int(user.requires_wheelchair),
                     int(user.avoid_steps),
+
                     user.min_length_m,
                     user.max_length_m,
                     user.max_difficulty,
+
                     int(user.bringing_dog),
+
                     user.accessibility_weight,
                     user.urban_weight,
                     user.difficulty_weight,
-                    user.safety_weight
+                    user.safety_weight,
+                    user.step_goal_weight
                 )
             )
 
@@ -90,16 +113,25 @@ def load_user_profile(user_id: str) -> UserProfile:
 
     return UserProfile(
         user_id=row["user_id"],
+
+        current_steps=row["current_steps"],
+        step_goal=row["step_goal"],
+        step_length_m=row["step_length_m"],
+
         requires_wheelchair=bool(row["requires_wheelchair"]),
         avoid_steps=bool(row["avoid_steps"]),
+
         min_length_m=row["min_length_m"],
         max_length_m=row["max_length_m"],
         max_difficulty=row["max_difficulty"],
+
         bringing_dog=bool(row["bringing_dog"]),
+
         accessibility_weight=row["accessibility_weight"],
         urban_weight=row["urban_weight"],
         difficulty_weight=row["difficulty_weight"],
-        safety_weight=row["safety_weight"]
+        safety_weight=row["safety_weight"],
+        step_goal_weight=row["step_goal_weight"]
     )
 
 '''
@@ -114,19 +146,31 @@ def save_user_profile(user: UserProfile):
     cur.execute("""
         INSERT INTO users (
             user_id,
+                
+            current_steps,
+            step_goal,
+            step_length_m,
+
             requires_wheelchair,
             avoid_steps,
+                
             min_length_m,
             max_length_m,
             max_difficulty,
+                
             bringing_dog,
+                
             accessibility_weight,
             urban_weight,
             difficulty_weight,
-            safety_weight
+            safety_weight,
+            step_goal_weight
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,? ,?)
         ON CONFLICT(user_id) DO UPDATE SET
+            current_steps = excluded.current_steps,
+            step_goal = excluded.step_goal,
+            step_length_m = excluded.step_length_m,
             requires_wheelchair = excluded.requires_wheelchair,
             avoid_steps = excluded.avoid_steps,
             min_length_m = excluded.min_length_m,
@@ -136,10 +180,14 @@ def save_user_profile(user: UserProfile):
             accessibility_weight = excluded.accessibility_weight,
             urban_weight = excluded.urban_weight,
             difficulty_weight = excluded.difficulty_weight,
-            safety_weight = excluded.safety_weight;
+            safety_weight = excluded.safety_weight,
+            step_goal_weight = excluded.step_goal_weight;
     """,
     (
         user.user_id,
+        user.current_steps,
+        user.step_goal if user.step_goal is not None else 0,
+        user.step_length_m,
         int(user.requires_wheelchair),
         int(user.avoid_steps),
         user.min_length_m,
@@ -149,8 +197,23 @@ def save_user_profile(user: UserProfile):
         user.accessibility_weight,
         user.urban_weight,
         user.difficulty_weight,
-        user.safety_weight
+        user.safety_weight,
+        user.step_goal_weight
     ))
+
+    conn.commit()
+    conn.close()
+
+# function to update a user's step count
+def update_user_steps(user_id: str, current_steps: int):
+    conn = make_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE users
+        SET current_steps = ?
+        WHERE user_id = ?;
+    """, (current_steps, user_id))
 
     conn.commit()
     conn.close()
