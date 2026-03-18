@@ -72,15 +72,6 @@ struct InputView: View {
                 .padding(.top, 4)
             }
 
-            if locationSearch.searchedCoordinate != nil {
-                HStack {
-                    Image(systemName: "location.fill")
-                        .foregroundColor(.blue)
-                    Text("Using selected location")
-                        .font(.subheadline)
-                }
-                .padding(.top, 8)
-            }
         }
     }
 }
