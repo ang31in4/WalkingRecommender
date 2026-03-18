@@ -15,6 +15,7 @@ struct Route: Identifiable, Decodable {
     let urbanScore: Double?
     let difficultyScore: Double?
     let safetyScore: Double?
+    var imageURL: String?
 
     enum CodingKeys: String, CodingKey {
         case geometry
@@ -67,6 +68,7 @@ struct Route: Identifiable, Decodable {
         self.urbanScore = try propertiesContainer.decodeIfPresent(Double.self, forKey: .u_score)
         self.difficultyScore = try propertiesContainer.decodeIfPresent(Double.self, forKey: .d_score)
         self.safetyScore = try propertiesContainer.decodeIfPresent(Double.self, forKey: .s_score)
+        self.imageURL = nil
         self.id = UUID().uuidString
     }
 
@@ -83,7 +85,8 @@ struct Route: Identifiable, Decodable {
         accessibilityScore: Double? = nil,
         urbanScore: Double? = nil,
         difficultyScore: Double? = nil,
-        safetyScore: Double? = nil
+        safetyScore: Double? = nil,
+        imageURL: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -97,6 +100,7 @@ struct Route: Identifiable, Decodable {
         self.urbanScore = urbanScore
         self.difficultyScore = difficultyScore
         self.safetyScore = safetyScore
+        self.imageURL = imageURL
     }
 
     /// Sample route for previews (e.g. MapView without backend).

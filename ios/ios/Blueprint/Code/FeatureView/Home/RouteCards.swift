@@ -12,37 +12,81 @@ struct RouteCard: View {
     let route: Route
     let userLocation: CLLocation
 
+    @State private var unsplashImageURL: String?
+
+    private func photoCategory(for route: Route) -> PhotoCategory {
+        route.urban == true ? .urban : .trail
+    }
+
     var body: some View {
         let distanceMiles: Double? = {
             guard let meters = route.distanceFromStart(from: userLocation) else { return nil }
             return meters / 1609.34
         }()
 
-        VStack(alignment: .leading, spacing: 8) {
-            Text(route.name)
-                .font(.headline)
-                .foregroundColor(.black)
+        VStack(alignment: .leading, spacing: 0) {
+            // Unsplash image at top
+            ZStack {
+                Color.gray.opacity(0.2)
+                if let urlString = unsplashImageURL, let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        case .failure:
+                            Image(systemName: "photo.on.rectangle.angled")
+                                .font(.title)
+                                .foregroundColor(.gray)
+                        case .empty:
+                            ProgressView()
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                } else {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.title)
+                        .foregroundColor(.gray)
+                }
+            }
+            .frame(height: 100)
+            .frame(maxWidth: .infinity)
+            .clipped()
 
-            Text("Length: \(String(format: "%.2f", route.length)) mi")
-                .font(.subheadline)
-                .foregroundColor(.gray)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(route.name)
+                    .font(.headline)
+                    .foregroundColor(.black)
 
-            if let distanceMiles {
-                Text("Distance: \(String(format: "%.2f", distanceMiles)) mi")
+                Text("Length: \(String(format: "%.2f", route.length)) mi")
                     .font(.subheadline)
                     .foregroundColor(.gray)
+
+                if let distanceMiles {
+                    Text("Distance: \(String(format: "%.2f", distanceMiles)) mi")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .frame(height: 100)
         .background(Color.white)
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.black.opacity(0.08), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
+        .task(id: route.id) {
+            if route.imageURL != nil {
+                unsplashImageURL = route.imageURL
+            } else {
+                unsplashImageURL = await UnsplashService.shared.getPhotoURL(for: route.name, category: photoCategory(for: route))
+            }
+        }
     }
 }
 
