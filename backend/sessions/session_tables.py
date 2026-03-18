@@ -3,6 +3,7 @@ from pathlib import Path
 from .session import SearchSession
 from .search_filters import SearchFilters
 from typing import Optional
+from ..learning.update_profile import update_user_table
 
 DATA_INGESTION_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = DATA_INGESTION_DIR / "sessions"

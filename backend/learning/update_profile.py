@@ -2,7 +2,7 @@ from collections import Counter
 from typing import List, Dict
 
 from ..users.user_profile import UserProfile
-from ..routes.route_features import RouteFeatures
+from ..users.manage_user_profiles import (load_user_profile, save_user_profile)
 from ..sessions.search_filters import SearchFilters
 
 # Updates a user's weights based on the chosen route 
@@ -160,3 +160,18 @@ def update_user_profile_from_patterns(user: UserProfile, patterns: Dict) -> User
         user.accessibility_weight = max(user.accessibility_weight - 0.1, 0.0)
 
     return user
+
+# change the actual table for the user
+def update_user_table(user_id: str, 
+                      accessibility: float,
+                      urban: float,
+                      difficulty: float,
+                      safety: float):
+    current_user = load_user_profile(user_id)
+    updated_user = update_profile_from_route_scores(current_user, 
+                                                    accessibility, 
+                                                    urban, 
+                                                    difficulty, 
+                                                    safety)
+    # update the table
+    save_user_profile(updated_user)
