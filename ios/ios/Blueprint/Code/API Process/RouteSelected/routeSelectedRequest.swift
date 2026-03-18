@@ -1,12 +1,22 @@
 import Foundation
 
-/// Backend expects: user_id (route choice is recorded with zero scores).
+/// Backend expects: user_id + route feature scores.
 struct RouteSelectedPostBody: Encodable {
     let user_id: String
+    let a_score: Double?
+    let u_score: Double?
+    let d_score: Double?
+    let s_score: Double?
 }
 
 func postRouteSelected(userId: String, route: Route) async throws {
-    let body = RouteSelectedPostBody(user_id: userId)
+    let body = RouteSelectedPostBody(
+        user_id: userId,
+        a_score: route.accessibilityScore,
+        u_score: route.urbanScore,
+        d_score: route.difficultyScore,
+        s_score: route.safetyScore
+    )
     let endpoint = APIEndpoints.postRouteSelected
 
     guard let url = URL(string: endpoint.urlString) else {

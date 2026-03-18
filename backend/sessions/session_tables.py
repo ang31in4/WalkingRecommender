@@ -1,9 +1,9 @@
 import sqlite3
 from pathlib import Path
 from .session import SearchSession
-from ..learning.update_profile import update_user_table
 from .search_filters import SearchFilters
 from typing import Optional
+from ..learning.update_profile import update_user_table
 
 DATA_INGESTION_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = DATA_INGESTION_DIR / "sessions"
@@ -142,10 +142,10 @@ def insert_selected_route(
     difficulty_score: Optional[float] = None,
     safety_score: Optional[float] = None,
 ) -> None:
-    """Insert the precomputed route feature scores into session_route_selected.
+    """Insert one row into session_route_selected.
 
-    The iOS client sends these scores directly (0..1). If any are missing, they
-    default to 0.
+    The iOS client sends precomputed scores (0..1). If any value is missing,
+    it defaults to 0.0.
     """
     cur = conn.cursor()
     cur.execute(
@@ -168,12 +168,20 @@ def insert_selected_route(
         ),
     )
 
-    if (accessibility_score or urban_score or difficulty_score or safety_score):
+    # Update the user's personal weights using the route feature scores we received.
+    # Note: do not use truthiness checks here; scores can legitimately be 0.0.
+    if all(
+        v is not None for v in (accessibility_score, urban_score, difficulty_score, safety_score)
+    ):
         try:
-            update_user_table(user_id, 
-                              accessibility_score, 
-                              urban_score, 
-                              difficulty_score, 
-                              safety_score)
+            update_user_table(
+                user_id,
+                float(accessibility_score),  # type: ignore[arg-type]
+                float(urban_score),  # type: ignore[arg-type]
+                float(difficulty_score),  # type: ignore[arg-type]
+                float(safety_score),  # type: ignore[arg-type]
+            )
         except Exception as e:
             print("User update failed:", e)
+
+
