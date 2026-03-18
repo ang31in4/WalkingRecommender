@@ -173,5 +173,5 @@ def initialize_test_users():
     insert_user_profile(LOOSE_USER)
 
 if __name__ == "__main__":
-    #initialize_test_users()
-    save_user_profile(LOOSE_USER)
+    initialize_test_users()
+    #save_user_profile(LOOSE_USER)
