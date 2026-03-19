@@ -172,6 +172,14 @@ def initialize_test_users():
     insert_user_profile(NO_PREF)
     insert_user_profile(LOOSE_USER)
 
+def reset_test_users():
+    save_user_profile(CASUAL_WALKER)
+    save_user_profile(ACCESS_WALKER)
+    save_user_profile(FITNESS_WALKER)
+    save_user_profile(DOG_WALKER)
+    save_user_profile(NO_PREF)
+    save_user_profile(LOOSE_USER)
+
 if __name__ == "__main__":
-    initialize_test_users()
-    #save_user_profile(LOOSE_USER)
+    #initialize_test_users()
+    reset_test_users()

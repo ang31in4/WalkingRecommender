@@ -174,4 +174,5 @@ def update_user_table(user_id: str,
                                                     difficulty, 
                                                     safety)
     # update the table
+    updated_user.round_weights()
     save_user_profile(updated_user)
