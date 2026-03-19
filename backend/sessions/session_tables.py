@@ -14,6 +14,7 @@ DB_PATH = DATA_DIR / "search_sessions.db"
 def make_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
 def make_session_table(conn):
@@ -185,3 +186,21 @@ def insert_selected_route(
             print("User update failed:", e)
 
 
+def clear_search_sessions(conn):
+    cur = conn.cursor()
+    
+    # Drop tables
+    cur.execute("DROP TABLE IF EXISTS session_route_selected;")
+    cur.execute("DROP TABLE IF EXISTS session_filters;")
+    cur.execute("DROP TABLE IF EXISTS session_interaction;")
+    cur.execute("DROP TABLE IF EXISTS search_sessions;")
+
+    conn.commit()
+
+    # Recreate tables
+    make_session_table(conn)
+    make_interaction_table(conn)
+    make_filters_table(conn)
+    make_route_selected_table(conn)
+
+    conn.commit()

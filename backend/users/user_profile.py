@@ -98,3 +98,9 @@ class UserProfile:
         self.urban_weight /= total
         self.difficulty_weight /= total
         self.safety_weight /= total
+
+    def round_weights(self):
+        self.accessibility_weight = round(self.accessibility_weight, 2)
+        self.urban_weight = round(self.urban_weight, 2)
+        self.difficulty_weight = round(self.difficulty_weight, 2)
+        self.safety_weight = round(self.safety_weight, 2)
