@@ -83,12 +83,7 @@ struct HomeView: View {
         .sheet(item: $selectedRoute) { route in
             NavigationStack {
                 RouteMapScreen(route: route, onStart: {
-                    let uid = loginViewModel.userId
-                    guard !uid.isEmpty else { return }
-                    Task {
-                        _ = try? await postRouteSelected(userId: uid, route: route)
-                        await MainActor.run { selectedRoute = nil }
-                    }
+                    performRouteSelection(userId: loginViewModel.userId, route: route)
                 })
                 .ignoresSafeArea(edges: .bottom)
                 .toolbar {
@@ -97,16 +92,27 @@ struct HomeView: View {
                     }
                     ToolbarItem(placement: .primaryAction) {
                         Button("Select") {
-                            let uid = loginViewModel.userId
-                            guard !uid.isEmpty else { return }
-                            Task {
-                                _ = try? await postRouteSelected(userId: uid, route: route)
-                                await MainActor.run { selectedRoute = nil }
-                            }
+                            performRouteSelection(userId: loginViewModel.userId, route: route)
                         }
                     }
                 }
             }
+        }
+    }
+
+    private func performRouteSelection(userId: String, route: Route) {
+        guard !userId.isEmpty else { return }
+        Task {
+            _ = await HealthStepService.shared.requestAuthorization()
+            let steps = await HealthStepService.shared.todayStepCount()
+            _ = try? await postRouteSelected(userId: userId, route: route)
+            _ = try? await postUserSteps(userId: userId, currentSteps: steps)
+            if let goal = try? await getUserStepGoal(userId: userId) {
+                print("[Steps] current_step=\(goal.current_step ?? -1), step_goal=\(goal.step_goal ?? -1)")
+            } else {
+                print("[Steps] current_step/step_goal fetch failed for user=\(userId)")
+            }
+            await MainActor.run { selectedRoute = nil }
         }
     }
 }

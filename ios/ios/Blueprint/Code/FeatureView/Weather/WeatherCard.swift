@@ -43,6 +43,14 @@ struct WeatherInfoView: View {
 
 struct WeatherView: View {
     @ObservedObject var locationSearch: LocationSearch
+    @State private var todaySteps: Int = 0
+
+    private func loadSteps() async {
+        // Request authorization; if denied, HealthKit queries will return 0.
+        _ = await HealthStepService.shared.requestAuthorization()
+        todaySteps = await HealthStepService.shared.todayStepCount()
+        print("[WeatherView] todaySteps=\(todaySteps)")
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -52,10 +60,25 @@ struct WeatherView: View {
                 ImageView()
                 GradientOverlay(width: cardWidth, height: cardHeight)
                 WeatherInfoView(locationSearch: locationSearch).padding(20)
+
+                VStack(spacing: 2) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.red)
+                    Text("\(todaySteps)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .frame(maxWidth: .infinity, alignment: .topTrailing)
+                .padding(.top, 14)
+                .padding(.trailing, 14)
             }
             .frame(width: cardWidth, height: cardHeight, alignment: .topLeading)
         }
         .frame(height: UIScreen.main.bounds.width / 2.25)
+        .task {
+            await loadSteps()
+        }
     }
 }
 

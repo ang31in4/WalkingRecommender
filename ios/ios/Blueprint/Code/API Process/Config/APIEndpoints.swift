@@ -10,6 +10,8 @@ enum APIEndpoints {
     case login
     case getRoutes
     case postRouteSelected
+    case postUserSteps(userId: String)
+    case getUserStepGoal(userId: String)
 
     var urlString: String {
         let base = APIConfig.baseURL
@@ -20,6 +22,12 @@ enum APIEndpoints {
             return "\(base)/api/routes"
         case .postRouteSelected:
             return "\(base)/api/session/route_selected"
+        case .postUserSteps(let userId):
+            let encoded = userId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? userId
+            return "\(base)/api/user/\(encoded)/steps"
+        case .getUserStepGoal(let userId):
+            let encoded = userId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? userId
+            return "\(base)/api/user/\(encoded)/step_goal"
         }
     }
 
@@ -28,6 +36,8 @@ enum APIEndpoints {
         case .login: return .POST
         case .getRoutes: return .POST
         case .postRouteSelected: return .POST
+        case .postUserSteps: return .POST
+        case .getUserStepGoal: return .GET
         }
     }
 }
