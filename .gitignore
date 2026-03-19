@@ -21,3 +21,6 @@ DerivedData/
 *.sqlite3
 
 *.geojsonbackend/routes/scored_routes.geojson
+
+# Sessions Database
+backend/sessions/search_sessions.db
